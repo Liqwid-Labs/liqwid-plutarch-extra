@@ -7,9 +7,19 @@
 -- Needed for Tagged instances for PlutusTx stuff
 {-# OPTIONS_GHC -Wno-orphans #-}
 
+{- HLINT ignore untag "Eta reduce" -}
+
 module Plutarch.Extra.Tagged (
+    -- * Core Type
     PTagged (..),
     pretag,
+    untag,
+
+    -- * Derived Tags
+    PTimedPoint,
+    PTimedInterval,
+    PTime,
+    tagTime,
 ) where
 
 import Data.Bifunctor (first)
@@ -25,6 +35,7 @@ import Plutarch (
     pcon,
     phoistAcyclic,
     plam,
+    pto,
     unTermCont,
     (#),
  )
@@ -38,7 +49,7 @@ import Plutarch.Extra.Comonad (
 import Plutarch.Extra.Functor (PFunctor (PSubcategory, pfmap))
 import Plutarch.Extra.TermCont (pmatchC)
 import Plutarch.Extra.Traversable (PTraversable (ptraverse))
-import Plutarch.Integer (PIntegral)
+import Plutarch.Integer (PInteger, PIntegral)
 import Plutarch.Lift (
     PConstantDecl (PConstantRepr, PConstanted, pconstantFromRepr, pconstantToRepr),
     PUnsafeLiftDecl (PLifted),
@@ -174,6 +185,14 @@ pretag ::
     Term s (PTagged tag' a)
 pretag = punsafeCoerce
 
+-- | @since 1.1.1
+untag ::
+    forall k.
+    forall (tag :: k) (a :: S -> Type) (s :: S).
+    Term s (PTagged tag a) ->
+    Term s a
+untag x = pto x
+
 -- | @since 1.0.0
 instance
     (PTryFrom PData (PAsData underlying)) =>
@@ -200,3 +219,34 @@ deriving newtype instance
 deriving newtype instance
     (PlutusTx.UnsafeFromData underlying) =>
     PlutusTx.UnsafeFromData (Tagged tag underlying)
+
+{- | Tags a value with a point in time. @PTimedPoint t a@
+ represents an @a@ at time @t@.
+
+ @since 0.1.0.0
+-}
+type PTimedPoint (t :: Char) a = a
+
+{- | Tags a value with a time interval. @PTimedInterval s t a@
+ represents an @a@ over time @s -> t@.
+
+ @since 0.1.0.0
++
+-}
+type PTimedInterval (s :: Char) (t :: Char) a = a
+
+{- | Represents a point in time.
+
+ @since 1.1.1
+-}
+type PTime (t :: Char) = PTimedPoint t (PTagged "Time" PInteger)
+
+{- | Adds a time tag.
+
+ @since 1.1.1
+-}
+tagTime ::
+    forall t (a :: S -> Type) (s :: S).
+    Term s a ->
+    Term s (PTimedPoint t a)
+tagTime = id
