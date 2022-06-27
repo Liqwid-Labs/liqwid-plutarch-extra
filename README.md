@@ -12,3 +12,10 @@ _Note, 2022-06-11_: This repo is alpha level software. Stability or correctness 
 
 `liqwid-plutarch-extra` is licensed under the Apache 2.0 license (SPDX code
 `Apache-2.0`); please see the `LICENSE` file for more details.
+
+### Available support channels info
+
+You can find help, more information and ongoing discusion about the project here:
+- [link] - short description
+- [link] - short description
+
