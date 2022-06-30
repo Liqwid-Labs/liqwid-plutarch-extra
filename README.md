@@ -6,6 +6,8 @@ _Note, 2022-06-27_: Most of the utilities currently in this respository will eve
 
 ## What is this?
 
+A library for utility functions related to plutarch.
+
 ## What _exactly_ does this do for me?
 
 # How do I use this?
