@@ -1,6 +1,6 @@
 _Note, 2022-06-11_: This repo is alpha level software. Stability or correctness should not be assumed.
 
-_Note, 2022-06-27_: Most of the utilities currently in this respository will eventually be upstreamed into the main Pltuarch repo.
+_Note, 2022-06-27_: Most of the utilities currently in this respository will eventually be upstreamed into the main [Pltuarch repo](https://github.com/Plutonomicon/plutarch-plutus).
 
 # `liqwid-plutarch-extra`
 
