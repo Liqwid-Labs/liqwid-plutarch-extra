@@ -200,6 +200,7 @@
           touch $out
         ''
       );
+      hydraJobs.required = self.checks.x86_64-linux;
       devShell = perSystem (system: self.flake.${system}.devShell);
     };
 }
