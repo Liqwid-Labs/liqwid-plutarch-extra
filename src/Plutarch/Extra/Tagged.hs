@@ -31,13 +31,17 @@ import Plutarch (
 import Plutarch.Bool (PEq, POrd)
 import Plutarch.Builtin (PAsData, PData, PIsData)
 import Plutarch.Extra.Applicative (PApplicative (ppure), PApply (pliftA2))
+import Plutarch.Extra.Boring (PBoring (pboring))
 import Plutarch.Extra.Comonad (
     PComonad (pextract),
     PExtend (pextend),
  )
 import Plutarch.Extra.Functor (PFunctor (PSubcategory, pfmap))
 import Plutarch.Extra.TermCont (pmatchC)
-import Plutarch.Extra.Traversable (PTraversable (ptraverse))
+import Plutarch.Extra.Traversable (
+    PSemiTraversable (psemitraverse, psemitraverse_),
+    PTraversable (ptraverse, ptraverse_),
+ )
 import Plutarch.Integer (PIntegral)
 import Plutarch.Lift (
     PConstantDecl (PConstantRepr, PConstanted, pconstantFromRepr, pconstantToRepr),
@@ -48,7 +52,58 @@ import Plutarch.TryFrom (PTryFrom (PTryFromExcess, ptryFrom'))
 import Plutarch.Unsafe (punsafeCoerce)
 import qualified PlutusTx
 
-{- | Plutarch-level 'Tagged'.
+{- | Plutarch-level 'Tagged'. @PTagged@ allows one to "tag" a given type at the type level.
+ Typically, @tag@ will be a 'Symbol', or some other custom kind. Since @PTagged@s only act
+ as wrappers, their 'tags' don't hold any significance in the resulting script, and have no
+ effect on performance or script size.
+
+=== Tagged Types:
+@
+-- We can create a new kind by defining an empty type. This is then 'promoted' by GHC to a kind.
+data Ada
+data GT
+
+PTagged Ada PInteger
+PTagged GT PValue
+
+-- Or we can use 'Symbol' (a type-level string)
+PTagged "hello" PInteger
+@
+
+=== Tagging:
+@
+a :: Term s PInteger
+a = pconstant 10
+
+tagged_a1 :: Term s (PTagged "hello" PInteger)
+tagged_a1 = ppure # a
+
+tagged_a2 :: Term s (PTagged "hello" PInteger)
+tagged_a2 = pcon . PTagged $ a
+
+-- Since PTagged also implement Num typeclass, this is also possible.
+-- Note, it requires the underlaying type to implement Num typeclass.
+tagged_a3 :: Term s (PTagged "hello" PInteger)
+tagged_a3 = 10
+
+-- This is also possible. Note, it requires the underlaying type to
+-- implement PLift typeclass.
+tagged_a4 :: Term s (PTagged "hello" PInteger)
+tagged_a4 = 10
+@
+
+== Untagging:
+@
+b :: Term s (PTagged "world" PInteger)
+b = ppure # pconstant 5
+
+tagged_b1 :: Term s PInteger
+tagged_b1 = pextract # b
+
+tagged_b2 :: Term s PInteger
+tagged_b2 = pmatch b $ \case
+    PTagged x -> x
+@
 
  @since 1.0.0
 -}
@@ -147,10 +202,19 @@ instance PApplicative (PTagged tag) where
 
 -- | @since 1.0.0
 instance PTraversable (PTagged tag) where
-    ptraverse = phoistAcyclic $
+    ptraverse = psemitraverse
+    ptraverse_ = psemitraverse_
+
+-- | @since 1.2.0
+instance PSemiTraversable (PTagged tag) where
+    psemitraverse = phoistAcyclic $
         plam $ \f t -> unTermCont $ do
             PTagged t' <- pmatchC t
             pure $ pfmap # plam (pcon . PTagged) # (f # t')
+    psemitraverse_ = phoistAcyclic $
+        plam $ \f t -> unTermCont $ do
+            PTagged t' <- pmatchC t
+            pure $ f # t'
 
 -- | @since 1.0.0
 instance
@@ -166,7 +230,10 @@ instance (PConstantDecl a) => PConstantDecl (Tagged t a) where
     pconstantToRepr (Tagged x) = pconstantToRepr x
     pconstantFromRepr x = Tagged <$> pconstantFromRepr x
 
--- | @since 1.0.0
+{- | Hint: it's @punsafeCoerce@. :D
+
+ @since 1.0.0
+-}
 pretag ::
     forall k' k.
     forall (tag' :: k') (tag :: k) (a :: S -> Type) (s :: S).
@@ -200,3 +267,7 @@ deriving newtype instance
 deriving newtype instance
     (PlutusTx.UnsafeFromData underlying) =>
     PlutusTx.UnsafeFromData (Tagged tag underlying)
+
+-- | @since 1.2.0
+instance (PBoring underlying) => PBoring (PTagged tag underlying) where
+    pboring = ppure # pboring
