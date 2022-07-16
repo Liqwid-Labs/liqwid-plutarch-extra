@@ -88,6 +88,7 @@ library
     Plutarch.Extra.Map.Sorted
     Plutarch.Extra.Map.Unsorted
     Plutarch.Extra.Maybe
+    Plutarch.Extra.Monoid
     Plutarch.Extra.Numeric
     Plutarch.Extra.Other
     Plutarch.Extra.Profunctor
@@ -100,6 +101,7 @@ library
     Plutarch.Extra.Traversable
 
   build-depends:
+    , composition-prelude
     , generics-sop
     , plutarch-extra
     , plutarch-numeric
