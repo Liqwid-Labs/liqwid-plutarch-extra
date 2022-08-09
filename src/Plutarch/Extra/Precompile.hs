@@ -29,6 +29,7 @@ module Plutarch.Extra.Precompile (
     LiftError (..),
     pliftCompiled',
     pliftCompiled,
+    toPTerm,
 ) where
 
 import Control.Lens ((^?))
@@ -48,12 +49,14 @@ import Plutarch.Lift (
     PConstantDecl (pconstantFromRepr),
     PUnsafeLiftDecl (PLifted),
  )
-import Plutarch.Prelude (PLift, S, Term, Type, (:-->))
+import Plutarch.Prelude (PLift, S, Term, Type, (:-->), ClosedTerm)
+import Plutarch.Internal (Term (Term), TermResult(TermResult), RawTerm(RCompiled))
 import PlutusCore.Builtin (KnownTypeError, readKnownConstant)
 import PlutusCore.Evaluation.Machine.Exception (_UnliftingErrorE)
 import PlutusLedgerApi.V1.Scripts (Script (Script, unScript))
 import UntypedPlutusCore (Program (Program, _progAnn, _progTerm, _progVer))
 import qualified UntypedPlutusCore.Core.Type as UplcType
+import qualified UntypedPlutusCore as UPLC
 
 -- | Apply a function to an argument on the compiled 'Script' level.
 applyScript :: Script -> Script -> Script
@@ -192,6 +195,14 @@ infixl 7 ###
 (###~) = applyCompiledTerm2'
 
 infixl 7 ###~
+
+
+{- | Convert 'CompiledTerm' into Plutarch 'Term'
+ This can then be used to `plift` directly.
+
+-}
+toPTerm :: forall p. CompiledTerm p -> ClosedTerm p
+toPTerm prog = Term $ const $ pure $ TermResult (RCompiled $ UPLC._progTerm $ unScript . debugScript . toDScript $ prog) []
 
 --  Copied and adapted the stuff below from 'Plutarch.Lift'. Including
 --  'LiftError', because the data constructors aren't exported there. Also
