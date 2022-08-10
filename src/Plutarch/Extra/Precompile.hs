@@ -45,18 +45,19 @@ import Plutarch.Extra.DScript (
     mustEvalD,
     script,
  )
+import Plutarch.FFI (unsafeForeignImport)
 import Plutarch.Lift (
     PConstantDecl (pconstantFromRepr),
     PUnsafeLiftDecl (PLifted),
  )
-import Plutarch.Prelude (PLift, S, Term, Type, (:-->), ClosedTerm)
-import Plutarch.Internal (Term (Term), TermResult(TermResult), RawTerm(RCompiled))
+import Plutarch.Prelude (ClosedTerm, PLift, S, Term, Type, (:-->))
 import PlutusCore.Builtin (KnownTypeError, readKnownConstant)
 import PlutusCore.Evaluation.Machine.Exception (_UnliftingErrorE)
 import PlutusLedgerApi.V1.Scripts (Script (Script, unScript))
+import PlutusTx.Code (CompiledCodeIn (DeserializedCode))
 import UntypedPlutusCore (Program (Program, _progAnn, _progTerm, _progVer))
-import qualified UntypedPlutusCore.Core.Type as UplcType
 import qualified UntypedPlutusCore as UPLC
+import qualified UntypedPlutusCore.Core.Type as UplcType
 
 -- | Apply a function to an argument on the compiled 'Script' level.
 applyScript :: Script -> Script -> Script
@@ -196,13 +197,17 @@ infixl 7 ###
 
 infixl 7 ###~
 
-
 {- | Convert 'CompiledTerm' into Plutarch 'Term'
- This can then be used to `plift` directly.
-
+ This can then be used to `plift`.
 -}
-toPTerm :: forall p. CompiledTerm p -> ClosedTerm p
-toPTerm prog = Term $ const $ pure $ TermResult (RCompiled $ UPLC._progTerm $ unScript . debugScript . toDScript $ prog) []
+toPTerm ::
+    forall (p :: S -> Type).
+    CompiledTerm p ->
+    ClosedTerm p
+toPTerm prog =
+    let (Script (UPLC.Program _ version term)) = debugScript . toDScript $ prog
+        program = UPLC.Program () version $ UPLC.termMapNames UPLC.fakeNameDeBruijn term
+     in unsafeForeignImport $ DeserializedCode program Nothing mempty
 
 --  Copied and adapted the stuff below from 'Plutarch.Lift'. Including
 --  'LiftError', because the data constructors aren't exported there. Also
