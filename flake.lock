@@ -1810,36 +1810,40 @@
     },
     "liqwid-nix": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-2205": "nixpkgs-2205"
       },
       "locked": {
-        "lastModified": 1659383708,
-        "narHash": "sha256-eenTO5t4ocK7VzorMUdUyKUoup976cCu5dJcVjebY8E=",
+        "lastModified": 1660148797,
+        "narHash": "sha256-uSwB6jmiP0giQM9NwCkXloabfRnbDSsd1EAKXbTQpq4=",
         "owner": "Liqwid-Labs",
         "repo": "liqwid-nix",
-        "rev": "c261df76dc31b3dc5dfde7030420e0a6be73f615",
+        "rev": "a4a33254c70181a6c2861ccd0155065a9cde2863",
         "type": "github"
       },
       "original": {
         "owner": "Liqwid-Labs",
+        "ref": "emiflake/consistent-nixpkgs",
         "repo": "liqwid-nix",
         "type": "github"
       }
     },
     "liqwid-nix_2": {
       "inputs": {
-        "nixpkgs": "nixpkgs_5"
+        "nixpkgs": "nixpkgs_5",
+        "nixpkgs-2205": "nixpkgs-2205_3"
       },
       "locked": {
-        "lastModified": 1659383708,
-        "narHash": "sha256-eenTO5t4ocK7VzorMUdUyKUoup976cCu5dJcVjebY8E=",
+        "lastModified": 1660148797,
+        "narHash": "sha256-uSwB6jmiP0giQM9NwCkXloabfRnbDSsd1EAKXbTQpq4=",
         "owner": "Liqwid-Labs",
         "repo": "liqwid-nix",
-        "rev": "c261df76dc31b3dc5dfde7030420e0a6be73f615",
+        "rev": "a4a33254c70181a6c2861ccd0155065a9cde2863",
         "type": "github"
       },
       "original": {
         "owner": "Liqwid-Labs",
+        "ref": "emiflake/consistent-nixpkgs",
         "repo": "liqwid-nix",
         "type": "github"
       }
@@ -2236,11 +2240,11 @@
     },
     "nixpkgs-2111": {
       "locked": {
-        "lastModified": 1658346836,
-        "narHash": "sha256-c9BZZbi0tqCQ4j6CMVDlsut3Q3ET1Fezf+qIslCfkhs=",
+        "lastModified": 1659446231,
+        "narHash": "sha256-hekabNdTdgR/iLsgce5TGWmfIDZ86qjPhxDg/8TlzhE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a1fe662eb26ffc2a036b37c4670392ade632c413",
+        "rev": "eabc38219184cc3e04a974fe31857d8e0eac098d",
         "type": "github"
       },
       "original": {
@@ -2268,11 +2272,11 @@
     },
     "nixpkgs-2111_3": {
       "locked": {
-        "lastModified": 1658346836,
-        "narHash": "sha256-c9BZZbi0tqCQ4j6CMVDlsut3Q3ET1Fezf+qIslCfkhs=",
+        "lastModified": 1659446231,
+        "narHash": "sha256-hekabNdTdgR/iLsgce5TGWmfIDZ86qjPhxDg/8TlzhE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a1fe662eb26ffc2a036b37c4670392ade632c413",
+        "rev": "eabc38219184cc3e04a974fe31857d8e0eac098d",
         "type": "github"
       },
       "original": {
@@ -2362,19 +2366,66 @@
         "type": "github"
       }
     },
-    "nixpkgs-latest": {
+    "nixpkgs-2205": {
       "locked": {
-        "lastModified": 1653918805,
-        "narHash": "sha256-6ahwAnBNGgqSNSn/6RnsxrlFi+fkA+RyT6o/5S1915o=",
+        "lastModified": 1660033036,
+        "narHash": "sha256-GjwzXmdN5SVTT0RIZ11uDTQxaHLTLt9/AbBeIHNfidQ=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a0a69be4b5ee63f1b5e75887a406e9194012b492",
+        "rev": "490f6174c03132bf8f078d0f3a6e5890a47f9b30",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-2205_2": {
+      "locked": {
+        "lastModified": 1660215038,
+        "narHash": "sha256-tqMyd5QB4MZh59wMHXqpro4hkKjz9ubQxkxFSuCuBGE=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "45c9736ed69800a6ff2164fb4538c9e40dad25d6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-2205_3": {
+      "locked": {
+        "lastModified": 1660033036,
+        "narHash": "sha256-GjwzXmdN5SVTT0RIZ11uDTQxaHLTLt9/AbBeIHNfidQ=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "490f6174c03132bf8f078d0f3a6e5890a47f9b30",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-latest": {
+      "locked": {
+        "lastModified": 1660237328,
+        "narHash": "sha256-gDPTYSwZDMgT37QBu9IxoI4WAIi5N4ZW3V71DaORKa4=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "8e4b07340d7b23c96923283168daa3d5e9bb3bb7",
         "type": "github"
       },
       "original": {
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a0a69be4b5ee63f1b5e75887a406e9194012b492",
         "type": "github"
       }
     },
@@ -2943,16 +2994,16 @@
         "secp256k1-haskell": "secp256k1-haskell"
       },
       "locked": {
-        "lastModified": 1659381657,
-        "narHash": "sha256-W0EWY0DV2idbIeqtJnShVHQ83exME8TK2GYQGbVpz8A=",
+        "lastModified": 1660143209,
+        "narHash": "sha256-cWOlMmVOy6AXLsFIxXMI2bEBYGZfW+9HJz1nJoLeWAI=",
         "owner": "Plutonomicon",
         "repo": "plutarch-plutus",
-        "rev": "45b7c77a9ee9bd6c7dc25ddebcc3d12c58c4c3a2",
+        "rev": "91bc3eaa0fd662b776c16b8eb5828a5c49b5376f",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
-        "ref": "staging",
+        "ref": "master",
         "repo": "plutarch-plutus",
         "type": "github"
       }
@@ -2990,11 +3041,11 @@
         "plutarch": "plutarch_2"
       },
       "locked": {
-        "lastModified": 1659452596,
-        "narHash": "sha256-j0StZAogDVbpjzBXsWzlAO4JPp2pafMnG5ndgMyeuwU=",
+        "lastModified": 1660151677,
+        "narHash": "sha256-sUdXtVdCpm7pgmw0f+b0FyF4Bf0VX+1kTY5U8O3H4uk=",
         "owner": "Liqwid-Labs",
         "repo": "plutarch-context-builder",
-        "rev": "7dfa384bbf5427412ba78ef48ddd86ca251fdb18",
+        "rev": "7033ca3c18968cfd206afbbd40861a0a778b414c",
         "type": "github"
       },
       "original": {
@@ -3483,6 +3534,7 @@
           "nixpkgs"
         ],
         "nixpkgs-2111": "nixpkgs-2111",
+        "nixpkgs-2205": "nixpkgs-2205_2",
         "nixpkgs-latest": "nixpkgs-latest",
         "plutarch": "plutarch",
         "plutarch-context-builder": "plutarch-context-builder",
