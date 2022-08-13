@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE ImpredicativeTypes #-}
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use camelCase" #-}
@@ -27,14 +28,17 @@ module Plutarch.Extra.Precompile (
     (###),
     (###~),
     LiftError (..),
-    pliftCompiled',
     pliftCompiled,
+    toPTerm',
+    toPTerm,
 ) where
 
-import Control.Lens ((^?))
+import PlutusCore.Evaluation.Machine.ExBudget (ExBudget)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import GHC.Stack (HasCallStack)
+import Plutarch.FFI (unsafeForeignImport)
+import PlutusTx.Code (CompiledCodeIn (DeserializedCode))
 import Plutarch.Evaluate (EvalError)
 import Plutarch.Extra.DebuggableScript (
     DebuggableScript (DebuggableScript),
@@ -45,17 +49,14 @@ import Plutarch.Extra.DebuggableScript (
     script,
  )
 import Plutarch.Lift (
-    PConstantDecl (pconstantFromRepr),
     PUnsafeLiftDecl (PLifted),
-    (LiftError (LiftError_EvalError, LiftError_KnownTypeError,
-                LiftError_FromRepr, LiftError_CompilationError)
+    LiftError (..),
  )
-import Plutarch.Prelude (PLift, S, Term, Type, (:-->))
-import PlutusCore.Builtin (KnownTypeError, readKnownConstant)
-import PlutusCore.Evaluation.Machine.Exception (_UnliftingErrorE)
-import PlutusLedgerApi.V1.Scripts (Script (Script, unScript))
+import Plutarch.Prelude (S, Term, Type, (:-->), ClosedTerm, plift, PLift)
+import PlutusLedgerApi.V1.Scripts (Script (Script))
 import UntypedPlutusCore (Program (Program, _progAnn, _progTerm, _progVer))
 import qualified UntypedPlutusCore.Core.Type as UplcType
+import qualified UntypedPlutusCore as UPLC
 
 -- | Apply a function to an argument on the compiled 'Script' level.
 applyScript :: Script -> Script -> Script
@@ -198,38 +199,35 @@ infixl 7 ###~
 --  Copied and adapted the stuff below from 'Plutarch.Lift'.
 --  Also added trace messages in the exceptions.
 
+toPTerm' ::
+    forall (p :: S -> Type).
+    CompiledTerm p ->
+    (Either EvalError (ClosedTerm p), ExBudget, [Text])
+toPTerm' prog =
+    case finalEvalDebuggableScript . toDebuggableScript $ prog of
+        (Right (Script (UPLC.Program _ version term)), b, t) -> 
+            let program = UPLC.Program () version $ UPLC.termMapNames UPLC.fakeNameDeBruijn term
+            in (Right $ unsafeForeignImport $ DeserializedCode program Nothing mempty, b, t)
+        (Left e, b, t) -> (Left e, b, t)
+
+toPTerm ::
+    forall (p :: S -> Type).
+    HasCallStack =>
+    CompiledTerm p ->
+    ClosedTerm p
+toPTerm prog =
+    case toPTerm' prog of
+        (Right x, _, _) -> x
+        (Left x, _, _) -> error $ show x
 
 {- | Convert a 'CompiledTerm' to the associated Haskell value. Fail otherwise.
 
  This will fully evaluate the compiled term, and convert the resulting value.
 -}
-pliftCompiled' ::
-    forall p. PUnsafeLiftDecl p => CompiledTerm p -> Either LiftError (PLifted p)
-pliftCompiled' prog = case finalEvalDebuggableScript (toDebuggableScript prog) of
-    (Right (unScript -> UplcType.Program _ _ term), _, _) ->
-        case readKnownConstant term of
-            Right r -> case pconstantFromRepr r of
-                Just h -> Right h
-                Nothing -> Left LiftError_FromRepr
-            Left e -> Left $ LiftError_KnownTypeError e
-    (Left e, _, logs) -> Left $ LiftError_EvalError e logs
-
--- | Like `pliftCompiled'` but throws on failure.
 pliftCompiled ::
-    forall p.
-    (HasCallStack, PLift p) =>
-    CompiledTerm p ->
-    PLifted p
-pliftCompiled prog = case pliftCompiled' prog of
-    Right x -> x
-    Left LiftError_FromRepr ->
-        error "plift failed: pconstantFromRepr returned 'Nothing'"
-    Left (LiftError_KnownTypeError e) ->
-        let unliftErrMaybe = e ^? _UnliftingErrorE
-         in error $
-                "plift failed: incorrect type: "
-                    <> maybe "absurd evaluation failure" show unliftErrMaybe
-    Left (LiftError_EvalError e logs) ->
-        error $
+    forall (p :: S -> Type). PLift p => CompiledTerm p -> PLifted p
+pliftCompiled prog = case toPTerm' prog of
+    (Right term, _, _) -> plift term
+    (Left e, _, logs) -> error $
             "plift failed: erring term: "
                 <> Text.unpack (Text.unlines $ Text.pack (show e) : logs)
