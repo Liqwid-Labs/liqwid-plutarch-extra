@@ -1810,14 +1810,15 @@
     },
     "liqwid-nix": {
       "inputs": {
-        "nixpkgs": "nixpkgs"
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-2205": "nixpkgs-2205"
       },
       "locked": {
-        "lastModified": 1659383708,
-        "narHash": "sha256-eenTO5t4ocK7VzorMUdUyKUoup976cCu5dJcVjebY8E=",
+        "lastModified": 1660314706,
+        "narHash": "sha256-RpFZJXYHAZZ5TNdxTfcHw39Uz7uQ+nSn/yYHweyL4qA=",
         "owner": "Liqwid-Labs",
         "repo": "liqwid-nix",
-        "rev": "c261df76dc31b3dc5dfde7030420e0a6be73f615",
+        "rev": "a103351651ecb17aef96d94419baf43cc7a1fc93",
         "type": "github"
       },
       "original": {
@@ -1828,18 +1829,20 @@
     },
     "liqwid-nix_2": {
       "inputs": {
-        "nixpkgs": "nixpkgs_5"
+        "nixpkgs": "nixpkgs_5",
+        "nixpkgs-2205": "nixpkgs-2205_2"
       },
       "locked": {
-        "lastModified": 1659383708,
-        "narHash": "sha256-eenTO5t4ocK7VzorMUdUyKUoup976cCu5dJcVjebY8E=",
+        "lastModified": 1660148797,
+        "narHash": "sha256-uSwB6jmiP0giQM9NwCkXloabfRnbDSsd1EAKXbTQpq4=",
         "owner": "Liqwid-Labs",
         "repo": "liqwid-nix",
-        "rev": "c261df76dc31b3dc5dfde7030420e0a6be73f615",
+        "rev": "a4a33254c70181a6c2861ccd0155065a9cde2863",
         "type": "github"
       },
       "original": {
         "owner": "Liqwid-Labs",
+        "ref": "emiflake/consistent-nixpkgs",
         "repo": "liqwid-nix",
         "type": "github"
       }
@@ -2236,11 +2239,11 @@
     },
     "nixpkgs-2111": {
       "locked": {
-        "lastModified": 1658346836,
-        "narHash": "sha256-c9BZZbi0tqCQ4j6CMVDlsut3Q3ET1Fezf+qIslCfkhs=",
+        "lastModified": 1659446231,
+        "narHash": "sha256-hekabNdTdgR/iLsgce5TGWmfIDZ86qjPhxDg/8TlzhE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a1fe662eb26ffc2a036b37c4670392ade632c413",
+        "rev": "eabc38219184cc3e04a974fe31857d8e0eac098d",
         "type": "github"
       },
       "original": {
@@ -2268,11 +2271,11 @@
     },
     "nixpkgs-2111_3": {
       "locked": {
-        "lastModified": 1658346836,
-        "narHash": "sha256-c9BZZbi0tqCQ4j6CMVDlsut3Q3ET1Fezf+qIslCfkhs=",
+        "lastModified": 1659446231,
+        "narHash": "sha256-hekabNdTdgR/iLsgce5TGWmfIDZ86qjPhxDg/8TlzhE=",
         "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a1fe662eb26ffc2a036b37c4670392ade632c413",
+        "rev": "eabc38219184cc3e04a974fe31857d8e0eac098d",
         "type": "github"
       },
       "original": {
@@ -2358,6 +2361,38 @@
       "original": {
         "owner": "NixOS",
         "ref": "nixpkgs-21.11-darwin",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-2205": {
+      "locked": {
+        "lastModified": 1660033036,
+        "narHash": "sha256-GjwzXmdN5SVTT0RIZ11uDTQxaHLTLt9/AbBeIHNfidQ=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "490f6174c03132bf8f078d0f3a6e5890a47f9b30",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "nixpkgs-2205_2": {
+      "locked": {
+        "lastModified": 1660033036,
+        "narHash": "sha256-GjwzXmdN5SVTT0RIZ11uDTQxaHLTLt9/AbBeIHNfidQ=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "490f6174c03132bf8f078d0f3a6e5890a47f9b30",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-22.05",
         "repo": "nixpkgs",
         "type": "github"
       }
@@ -2943,16 +2978,16 @@
         "secp256k1-haskell": "secp256k1-haskell"
       },
       "locked": {
-        "lastModified": 1659381657,
-        "narHash": "sha256-W0EWY0DV2idbIeqtJnShVHQ83exME8TK2GYQGbVpz8A=",
+        "lastModified": 1660245357,
+        "narHash": "sha256-Q93Lq6leerCQedmN+3lJQWotyuGAhW6Sn14EKZd2SsA=",
         "owner": "Plutonomicon",
         "repo": "plutarch-plutus",
-        "rev": "45b7c77a9ee9bd6c7dc25ddebcc3d12c58c4c3a2",
+        "rev": "3fe25c2376bca1a563ceecc273ae31771264e089",
         "type": "github"
       },
       "original": {
         "owner": "Plutonomicon",
-        "ref": "staging",
+        "ref": "master",
         "repo": "plutarch-plutus",
         "type": "github"
       }
@@ -2990,11 +3025,11 @@
         "plutarch": "plutarch_2"
       },
       "locked": {
-        "lastModified": 1659452596,
-        "narHash": "sha256-j0StZAogDVbpjzBXsWzlAO4JPp2pafMnG5ndgMyeuwU=",
+        "lastModified": 1660151677,
+        "narHash": "sha256-sUdXtVdCpm7pgmw0f+b0FyF4Bf0VX+1kTY5U8O3H4uk=",
         "owner": "Liqwid-Labs",
         "repo": "plutarch-context-builder",
-        "rev": "7dfa384bbf5427412ba78ef48ddd86ca251fdb18",
+        "rev": "7033ca3c18968cfd206afbbd40861a0a778b414c",
         "type": "github"
       },
       "original": {
