@@ -14,6 +14,12 @@ This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
    various types. This is useful for benchmarking and testing, since it will lead to
    performance increases and more accurate measurements of performance.
 
+## 2.0.1 -- 2022-08-08
+
+### Changed
+
+ - Scripts compiled with 'mustCompile' now enable detail trace.
+
 ## 2.0.0 -- 2022-08-02
 
 ### Added 
