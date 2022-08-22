@@ -3,10 +3,25 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
+{- |
+ Module: Plutarch.Extra.FixedDecimal
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+-}
 module Plutarch.Extra.FixedDecimal (
+    -- * Type
     PFixedDecimal (..),
+
+    -- * Type classes
     DivideSemigroup (..),
     DivideMonoid (..),
+
+    -- * Functions
+
+    -- ** Conversion
     decimalToAdaValue,
     fromPInteger,
     toPInteger,
@@ -28,8 +43,9 @@ import qualified Plutarch.Numeric.Additive as A (
 import Plutarch.TryFrom (PTryFrom (PTryFromExcess, ptryFrom'))
 import Plutarch.Unsafe (punsafeCoerce)
 
-{- | Fixed width decimal. Decimal point will be given through typelit.
- This would be used for representing Ada value with some Lovelace changes.
+{- | Fixed-width decimal, with the decimal point indicated in its type. One
+ possible use is currency at a fixed precision: for example, an Ada value
+ stored as Lovelace.
 
  @since 1.0.0
 -}
@@ -58,6 +74,7 @@ newtype PFixedDecimal (unit :: Nat) (s :: S)
 instance DerivePlutusType (PFixedDecimal a) where
     type DPTStrat _ = PlutusTypeNewtype
 
+-- | @since 1.4.0
 instance KnownNat u => PNum (PFixedDecimal u) where
     (#*) =
         (pcon . PFixedDecimal)
@@ -70,32 +87,33 @@ instance PTryFrom PData (PAsData (PFixedDecimal unit)) where
     type PTryFromExcess PData (PAsData (PFixedDecimal unit)) = PTryFromExcess PData (PAsData PInteger)
     ptryFrom' d k = ptryFrom' @_ @(PAsData PInteger) d $ k . first punsafeCoerce
 
--- TODO: This should be moved to either to plutarch-numeric or other module
+-- | @since 1.4.0
 class DivideSemigroup a where
     divide :: a -> a -> a
 
+-- | @since 1.4.0
 class DivideSemigroup a => DivideMonoid a where
     one :: a
 
 -- | @since 1.0.0
-instance KnownNat u => DivideSemigroup (Term s (PFixedDecimal u)) where
+instance (KnownNat u) => DivideSemigroup (Term s (PFixedDecimal u)) where
     divide (pto -> x) (pto -> y) =
         pcon . PFixedDecimal $ pdiv # (x * pconstant (natVal (Proxy @u))) # y
 
 -- | @since 1.0.0
-instance KnownNat u => DivideMonoid (Term s (PFixedDecimal u)) where
+instance (KnownNat u) => DivideMonoid (Term s (PFixedDecimal u)) where
     one = 1
 
 -- | @since 1.0.0
-instance KnownNat u => A.AdditiveSemigroup (Term s (PFixedDecimal u)) where
+instance (KnownNat u) => A.AdditiveSemigroup (Term s (PFixedDecimal u)) where
     (+) = (+)
 
 -- | @since 1.0.0
-instance KnownNat u => A.AdditiveMonoid (Term s (PFixedDecimal u)) where
+instance (KnownNat u) => A.AdditiveMonoid (Term s (PFixedDecimal u)) where
     zero = pcon . PFixedDecimal $ pconstant 0
 
-{- | Convert given decimal into Ada value. Input should be Ada value with decimals; outputs
- will be lovelace values in integer.
+{- | Convert a decimal into an Ada value. This will construct the value as an
+ integral amount of Lovelace.
 
  @since 1.0.0
 -}
@@ -109,7 +127,7 @@ decimalToAdaValue =
             let adaValue = (pdiv # dec # pconstant (natVal (Proxy @unit))) * pconstant 1000000
              in psingletonValue # pconstant "" # pconstant "" #$ adaValue
 
-{- | Convert @PInteger@ to @PFixedDecimal@.
+{- | Convert a 'PInteger' to a 'PFixedDecimal'.
 
  @since 1.0.0
 -}
@@ -120,7 +138,8 @@ fromPInteger ::
 fromPInteger =
     phoistAcyclic $ plam $ \z -> pcon . PFixedDecimal $ pconstant (natVal (Proxy @unit)) * z
 
-{- | Convert @PFixedDecimal@ to @Integer@. Values that are smaller than 1 will be lost.
+{- | Convert a 'PFixedDecimal' to a 'PInteger' by truncation; any fractional
+ amounts will be dropped.
 
  @since 1.0.0
 -}

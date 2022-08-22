@@ -5,6 +5,14 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
+{- |
+ Module: Plutarch.Extra.IsData
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+-}
 module Plutarch.Extra.IsData (
     -- * PlutusTx ToData/FromData derive-wrappers
     ProductIsData (..),
@@ -97,7 +105,8 @@ import Prelude (
 -- ProductIsData
 
 {- |
-  Wrapper for deriving 'ToData', 'FromData' using the 'List' constructor of Data to represent a Product type.
+  Wrapper for deriving 'ToData', 'FromData' using the 'List' constructor of
+  'Data' to represent a product type.
 
   Uses 'gProductToBuiltinData', 'gproductFromBuiltinData'.
 
@@ -105,11 +114,15 @@ import Prelude (
 -}
 newtype ProductIsData (a :: Type) = ProductIsData {unProductIsData :: a}
 
--- | Variant of 'PConstantViaData' using the List repr from 'ProductIsData'
+{- | Variant of 'PConstantViaData' using the 'List' representation from
+ 'ProductIsData'.
+
+ @since 1.1.0
+-}
 newtype DerivePConstantViaDataList (h :: Type) (p :: S -> Type) = DerivePConstantViaDataList h
 
 {- |
-  Generically convert a Product-Type to 'BuiltinData' with the 'List' repr.
+  Generically convert a product-Type to 'BuiltinData' with the 'List' representation.
 
   @since 1.1.0
 -}
@@ -122,7 +135,7 @@ gProductToBuiltinData x =
     BuiltinData $ List $ hcollapse $ hcmap (Proxy @ToData) (mapIK toData) $ productTypeFrom x
 
 {- |
-  Generically convert a Product-type from a 'BuiltinData' 'List' repr.
+  Generically convert a product type from a 'BuiltinData' 'List' representation.
 
   @since 1.1.0
 -}
@@ -197,7 +210,7 @@ instance
 -- PEnumData
 
 {- |
-  Wrapper for deriving 'ToData', 'FromData' using an Integer representation via 'Enum'.
+  Wrapper for deriving 'ToData', 'FromData' using an integral representation via 'Enum'.
 
   @since 1.1.0
 -}
@@ -237,7 +250,7 @@ instance PlutusTypeStrat PlutusTypeEnumData where
     derivedPMatch = pmatchEnum
 
 {- |
-  Wrapper for deriving `PConstantDecl` using an Integer representation via 'Enum'.
+  Wrapper for deriving `PConstantDecl` using an integral representation via 'Enum'.
 
   @since 1.1.0
 -}
@@ -260,12 +273,13 @@ instance
     pconstantToRepr = toInteger . fromEnum @h . coerce
     pconstantFromRepr = Just . coerce . toEnum @h . fromInteger
 
--- | Safely enumerate all the cases.
+-- Enumerate all cases. This relies on 'enumFrom' not being partial or having
+-- \'gaps\'; we cannot guarantee this in general.
 safeCases :: forall (a :: Type). (Bounded a, Enum a) => [a]
 safeCases = enumFrom minBound
 
 {- |
-  Pattern match over the integer-repr of a Bounded Enum type.
+  Pattern match over the integral representation of a 'Bounded' and 'Enum' instance.
 
   @since 1.1.0
 -}
@@ -277,7 +291,6 @@ pmatchEnum ::
     Term s b
 pmatchEnum x f = unTermCont $ do
     x' <- pletC x
-
     let branch :: a -> Term s b -> Term s b
         branch n =
             pif
@@ -286,10 +299,10 @@ pmatchEnum x f = unTermCont $ do
 
     pure $ foldr branch (f maxBound) safeCases
 
-{- |
-  Pattern match PData as a Bounded Enum. Useful for Redeemers.
+{- | Pattern match on 'PData' by treating it as an instance of 'Bounded' and
+ 'Enum'.
 
-  @since 1.1.0
+ @since 1.1.0
 -}
 pmatchEnumFromData ::
     forall (a :: Type) (b :: S -> Type) (s :: S).

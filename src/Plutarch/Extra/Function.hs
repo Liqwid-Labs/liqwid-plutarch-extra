@@ -1,3 +1,18 @@
+{- |
+ Module: Plutarch.Extra.Function
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ Utilities for Plutarch functions.
+
+ = Note
+
+ Many of these utilities are specialized to ':-->'. You can find more general
+ versions of many of these operators in 'Plutarch.Extra.Category'.
+-}
 module Plutarch.Extra.Function (
     pconst,
     pidentity,
@@ -40,8 +55,9 @@ pon = phoistAcyclic $
             b = g # y
          in f # a # b
 
-{- | Make uncurried function with Haskell function with two arguments.
-     @since 1.3.0
+{- | Uncurry an arity-2 Haskell function on 'Term's using 'PBuiltinPair's.
+
+ @since 1.3.0
 -}
 pbuiltinUncurry ::
     forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (s :: S).

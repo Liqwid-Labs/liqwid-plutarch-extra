@@ -2,6 +2,16 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE TypeApplications #-}
 
+{- |
+ Module: Plutarch.Extra.List
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ Utilities for list-like Plutarch types.
+-}
 module Plutarch.Extra.List (
     pnotNull,
     pmergeBy,
@@ -21,19 +31,18 @@ module Plutarch.Extra.List (
     preplicate,
     pisUniqBy',
     pisUniq',
-    module Extra,
+    Extra.pcheckSorted,
+    Extra.preverse,
 ) where
 
 import Plutarch.Api.V1.Tuple (PTuple)
-import "plutarch-extra" Plutarch.Extra.List as Extra (
-    pcheckSorted,
-    preverse,
- )
+import "plutarch-extra" Plutarch.Extra.List as Extra
 import Plutarch.Extra.TermCont (pletC)
 
-{- | True if a list is not empty.
+{- | Verify if a list-like structure is non-empty. This inspects a single cons,
+ so works in constant time.
 
-   @since 1.1.0
+ @since 1.1.0
 -}
 pnotNull ::
     forall (a :: S -> Type) (s :: S) list.
@@ -46,10 +55,15 @@ pnotNull =
         plam $
             pelimList (\_ _ -> pcon PTrue) (pcon PFalse)
 
-{- | / O(n) /. Merge two lists which are assumed to be ordered, given a custom comparator.
-    The comparator should return true if first value is less than the second one.
+{- | Given a custom comparator and two list-like structures assumed ordered
+ given that comparator, produce the merge of the two lists, ordered by the
+ given comparator. Runs in time linear relative the length of /both/ of its
+ list-like arguments.
 
-   @since 1.1.0
+ The comparator function should give 'PTrue' if its first argument is less
+ than its second argument.
+
+ @since 1.1.0
 -}
 pmergeBy ::
     forall (a :: S -> Type) (s :: S) list.
@@ -78,13 +92,15 @@ pmergeBy = phoistAcyclic $ pfix #$ plam go
                             (pcons # ah #$ self # comp # at # b)
                             (pcons # bh #$ self # comp # a # bt)
 
-{- | / O(nlogn) /. Merge sort, bottom-up version, given a custom comparator.
+{- | Given a custom comparator, sort the list-like argument using a stable,
+ bottom-up merge sort using that comparator. As this is a comparison sort, it
+ requires a linearithmic (proportional to $n \log(n)$) number of calls to the
+ comparator, where $n$ is the length of the list-like argument.
 
-   Assuming the comparator returns true if first value is less than the second one,
-    the list elements will be arranged in ascending order, keeping duplicates in the order
-    they appeared in the input.
+ The comparator function should give 'PTrue' if its first argument is less
+ than its second argument.
 
-   @since 1.1.0
+ @since 1.1.0
 -}
 pmsortBy ::
     forall s a l.
@@ -113,9 +129,10 @@ pmsortBy = phoistAcyclic $
                                 zs = ptail # ys
                              in pcons # (pmergeBy # comp # y # z) # (self # comp # zs)
 
-{- | A special case of 'pmsortBy' which requires elements have 'POrd' instance.
+{- | As 'pmsortBy', but using the '#<' operation of the 'POrd' instance for the
+ contents of the list-like argument as the comparator.
 
-   @since 1.1.0
+ @since 1.1.0
 -}
 pmsort ::
     (POrd a, PIsListLike l a, PIsListLike l (l a)) =>

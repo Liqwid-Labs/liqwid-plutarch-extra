@@ -2,8 +2,21 @@
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE RankNTypes #-}
 
+{- |
+ Module: Plutarch.Extra.DebuggableScript
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ A version of 'Script' which can optionally emit debug information.
+-}
 module Plutarch.Extra.DebuggableScript (
+    -- * Type
     DebuggableScript (..),
+
+    -- * Functions
     checkedCompileD,
     mustCompileD,
     mustFinalEvalDebuggableScript,

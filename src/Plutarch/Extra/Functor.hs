@@ -1,5 +1,13 @@
 {-# LANGUAGE TypeApplications #-}
 
+{- |
+ Module: Plutarch.Extra.Functor
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+-}
 module Plutarch.Extra.Functor (
     -- * Type classes
     Plut,

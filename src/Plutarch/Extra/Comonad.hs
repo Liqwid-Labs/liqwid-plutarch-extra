@@ -1,4 +1,5 @@
 module Plutarch.Extra.Comonad (
+    -- * Type classes
     PExtend (..),
     PComonad (..),
 ) where
@@ -7,7 +8,15 @@ import Plutarch.Extra.Functor (PFunctor (PSubcategory))
 import Plutarch.Extra.TermCont (pletC, pmatchC)
 import Plutarch.List (puncons)
 
--- | @since 1.0.0
+{- | Gives a 'PFunctor' the ability to be \'extended\'.
+
+ = Laws
+
+ * /Composition:/ @('pextend' '#' f) '#>>>' ('pextend' '#' g)@ @=@ @'pextend'
+ (('pextend' '#' f) '#>>>' g)@
+
+ @since 1.0.0
+-}
 class (PFunctor w) => PExtend (w :: (S -> Type) -> S -> Type) where
     pextend ::
         forall (a :: S -> Type) (b :: S -> Type) (s :: S).
@@ -52,7 +61,15 @@ instance PExtend (PPair a) where
             PPair x _ <- pmatchC p
             pure . pcon . PPair x $ f # p
 
--- | @since 1.0.0
+{- | Makes a 'PExtend' into a comonad on a subcategory of 'Plut'.
+
+ = Laws
+
+ * /Extend-extract:/ @'pextend' '#' 'pextract'@ @=@ @'pidentity'@
+ * /Extract-extend:/ @('pextend' '#' f) '#>>>' 'pextract'@ @=@ @f@
+
+ @since 1.0.0
+-}
 class (PExtend w) => PComonad (w :: (S -> Type) -> S -> Type) where
     pextract ::
         forall (a :: S -> Type) (s :: S).

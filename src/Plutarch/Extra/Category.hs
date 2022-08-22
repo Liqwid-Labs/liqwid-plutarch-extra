@@ -1,13 +1,31 @@
+{- |
+ Module: Plutarch.Extra.Category
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+-}
 module Plutarch.Extra.Category (
-    PSemigroupoid ((#>>>)),
-    PCategory (pidentity),
+    -- * Type classes
+    PSemigroupoid (..),
+    PCategory (..),
+
+    -- * Helper functions
     pconst,
     (#<<<),
 ) where
 
 import Plutarch.Extra.Profunctor (PProfunctor (PCoSubcategory, PContraSubcategory, prmap))
 
--- | @since 1.0.0
+{- | Gives a 'PProfunctor' the ability to compose.
+
+ = Laws
+
+ * /Associativity:/ @(f '#>>>' g) '#>>>' h@ @=@ @f '#>>>' (g '#>>>' h)@
+
+ @since 1.0.0
+-}
 class (PProfunctor p) => PSemigroupoid (p :: (S -> Type) -> (S -> Type) -> S -> Type) where
     (#>>>) ::
         forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (s :: S).
@@ -37,7 +55,14 @@ instance PSemigroupoid (:-->) where
                 plam $ \bc ->
                     plam $ \x -> bc # (ab # x)
 
--- | @since 1.0.0
+{- | Extends a 'PSemigroupoid' with a compositional identity.
+
+ = Laws
+
+ * /Identity:/ @'pidentity' '#>>>' f@ @=@ @f '#>>>' 'pidentity'@ @=@ @f@
+
+ @since 1.0.0
+-}
 class (PSemigroupoid p) => PCategory (p :: (S -> Type) -> (S -> Type) -> S -> Type) where
     pidentity ::
         forall (a :: S -> Type) (s :: S).
@@ -50,7 +75,11 @@ class (PSemigroupoid p) => PCategory (p :: (S -> Type) -> (S -> Type) -> S -> Ty
 instance PCategory (:-->) where
     pidentity = phoistAcyclic $ plam id
 
--- | @since 1.0.0
+{- | Given a \'result\', constructs an arrow sending absolutely anything to that
+ \'result\'. Similar to Haskell's 'const', but over an arbitrary 'PCategory'.
+
+ @since 1.0.0
+-}
 pconst ::
     forall
         (p :: (S -> Type) -> (S -> Type) -> S -> Type)
@@ -68,7 +97,11 @@ pconst = phoistAcyclic $ plam $ \x -> prmap # (go # x) # pidentity
     go :: forall (s' :: S). Term s' (a :--> b :--> a)
     go = phoistAcyclic $ plam const
 
--- | @since 1.0.0
+{- | Composition from right to left. Similar to Haskell's composition operator,
+ but over an arbitrary 'PSemigroupoid'.
+
+ @since 1.0.0
+-}
 (#<<<) ::
     forall
         (p :: (S -> Type) -> (S -> Type) -> S -> Type)

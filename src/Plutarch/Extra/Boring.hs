@@ -1,6 +1,17 @@
 -- Needed to ensure mapBoring is used properly
 {-# OPTIONS_GHC -Wno-redundant-constraints #-}
 
+{- |
+ Module: Plutarch.Extra.Boring
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ Defines a Plutarch notion of a type which provides no information from its
+ values. Inspired by [Conor McBride](https://stackoverflow.com/a/33115522/2629787).
+-}
 module Plutarch.Extra.Boring (
     -- * Type class
     PBoring (..),

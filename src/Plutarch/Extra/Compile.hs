@@ -2,6 +2,13 @@
 
 module Plutarch.Extra.Compile (mustCompile) where
 
+--
+--  Module: Plutarch.Extra.Compile
+--  Copyright: (C) Liqwid Labs 2022
+--  License: Apache 2.0
+--  Maintainer: Koz Ross <koz@mlabs.city>
+--  Portability: GHC only
+--  Stability: Experimental
 import qualified Data.Text as T
 import Plutarch (
     Config (Config, tracingMode),

@@ -3,6 +3,16 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE TypeApplications #-}
 
+{- |
+ Module: Plutarch.Extra.Field
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ Utilities for working with 'PDataRecord' fields.
+-}
 module Plutarch.Extra.Field (pletAll, pletAllC) where
 
 import GHC.TypeLits (Symbol)
@@ -19,7 +29,8 @@ type family BindAll (ps :: [PLabeledType]) :: [Symbol] where
     BindAll '[] = '[]
     BindAll ((name ':= _) ': xs) = name : BindAll xs
 
-{- | Same as `pletFields` but instead of specifiying fields, it will take all fields.
+{- | Same as 'pletFields', but binds /all/ fields instead of only those
+ specified.
 
  @since 1.3.0
 -}
@@ -35,7 +46,7 @@ pletAll ::
     Term s b
 pletAll = pletFields @(BindAll ps)
 
-{- | TermCont version of `pletAll`
+{- | As 'pletAll', but suitable for use inside of 'TermCont'.
 
  @since 1.3.0
 -}

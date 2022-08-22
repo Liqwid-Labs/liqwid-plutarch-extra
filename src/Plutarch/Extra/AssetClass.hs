@@ -12,7 +12,10 @@
  Plutarch-level representation of asset classes.
 -}
 module Plutarch.Extra.AssetClass (
+    -- * Type
     PAssetClass (..),
+
+    -- * Functions
     passetClass,
     passetClassValueOf,
     pvalueOf,
