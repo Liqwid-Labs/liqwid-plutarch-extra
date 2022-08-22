@@ -106,6 +106,7 @@ library
     Plutarch.Extra.Monoid
     Plutarch.Extra.MultiSig
     Plutarch.Extra.Numeric
+    Plutarch.Extra.Ordering
     Plutarch.Extra.Precompile
     Plutarch.Extra.Profunctor
     Plutarch.Extra.Record

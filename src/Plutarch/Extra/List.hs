@@ -25,10 +25,12 @@ module Plutarch.Extra.List (
 ) where
 
 import Plutarch.Api.V1.Tuple (PTuple)
+import Plutarch.Extra.Function ((#.*))
 import "plutarch-extra" Plutarch.Extra.List as Extra (
     pcheckSorted,
     preverse,
  )
+import Plutarch.Extra.Ordering (PCompareable (pcompare), POrdering (PEQ, PGT, PLT))
 import Plutarch.Extra.TermCont (pletC)
 
 {- | True if a list is not empty.
@@ -56,7 +58,7 @@ pmergeBy ::
     (PIsListLike list a) =>
     Term
         s
-        ( (a :--> a :--> PBool)
+        ( (a :--> a :--> POrdering)
             :--> list a
             :--> list a
             :--> list a
@@ -73,10 +75,9 @@ pmergeBy = phoistAcyclic $ pfix #$ plam go
                     bt <- pletC $ ptail # b
 
                     pure $
-                        pif
-                            (comp # ah # bh)
-                            (pcons # ah #$ self # comp # at # b)
-                            (pcons # bh #$ self # comp # a # bt)
+                        pmatch (comp # ah # bh) $ \case
+                            PLT -> pcons # ah #$ self # comp # at # b
+                            _ -> pcons # bh #$ self # comp # a # bt
 
 {- | / O(nlogn) /. Merge sort, bottom-up version, given a custom comparator.
 
@@ -89,12 +90,12 @@ pmergeBy = phoistAcyclic $ pfix #$ plam go
 pmsortBy ::
     forall s a l.
     (PIsListLike l a, PIsListLike l (l a)) =>
-    Term s ((a :--> a :--> PBool) :--> l a :--> l a)
+    Term s ((a :--> a :--> POrdering) :--> l a :--> l a)
 pmsortBy = phoistAcyclic $
     plam $ \comp xs ->
         mergeAll # comp # (pmap # psingleton # xs)
   where
-    mergeAll :: Term _ ((a :--> a :--> PBool) :--> l (l a) :--> l a)
+    mergeAll :: Term _ ((a :--> a :--> POrdering) :--> l (l a) :--> l a)
     mergeAll = phoistAcyclic $
         pfix #$ plam $ \self comp xs ->
             pif (pnull # xs) pnil $
@@ -102,7 +103,7 @@ pmsortBy = phoistAcyclic $
                     ys = ptail # xs
                  in pif (pnull # ys) y $
                         self # comp #$ mergePairs # comp # xs
-    mergePairs :: Term _ ((a :--> a :--> PBool) :--> l (l a) :--> l (l a))
+    mergePairs :: Term _ ((a :--> a :--> POrdering) :--> l (l a) :--> l (l a))
     mergePairs = phoistAcyclic $
         pfix #$ plam $ \self comp xs ->
             pif (pnull # xs) pnil $
@@ -118,11 +119,9 @@ pmsortBy = phoistAcyclic $
    @since 1.1.0
 -}
 pmsort ::
-    (POrd a, PIsListLike l a, PIsListLike l (l a)) =>
+    (PCompareable a, PIsListLike l a, PIsListLike l (l a)) =>
     Term s (l a :--> l a)
-pmsort = phoistAcyclic $ pmsortBy # comp
-  where
-    comp = phoistAcyclic $ plam (#<)
+pmsort = phoistAcyclic $ pmsortBy # pcompare
 
 {- | / O(nlogn) /. Sort and remove dupicate elements in a list.
 
@@ -136,18 +135,19 @@ pnubSortBy ::
     (PIsListLike list a, PIsListLike list (list a)) =>
     Term
         s
-        ( (a :--> a :--> PBool)
-            :--> (a :--> a :--> PBool)
+        ( (a :--> a :--> POrdering)
             :--> list a
             :--> list a
         )
 pnubSortBy = phoistAcyclic $
-    plam $ \eq comp l -> pif (pnull # l) l $
+    plam $ \comp l -> pif (pnull # l) l $
         unTermCont $ do
             sl <- pletC $ pmsortBy # comp # l
 
             let x = phead # sl
                 xs = ptail # sl
+
+                eq = plam (pcon PEQ #==) #.* comp
 
             return $ go # eq # x # xs
   where
@@ -170,12 +170,9 @@ pnubSortBy = phoistAcyclic $
 -}
 pnubSort ::
     forall (a :: S -> Type) (s :: S) list.
-    (PIsListLike list a, PIsListLike list (list a), POrd a) =>
+    (PIsListLike list a, PIsListLike list (list a), PCompareable a) =>
     Term s (list a :--> list a)
-pnubSort = phoistAcyclic $ pnubSortBy # eq # comp
-  where
-    eq = phoistAcyclic $ plam (#==)
-    comp = phoistAcyclic $ plam (#<)
+pnubSort = phoistAcyclic $ pnubSortBy # pcompare
 
 {- | / O(nlogn) /. Check if a list contains no duplicates.
 
@@ -186,14 +183,13 @@ pisUniqBy ::
     (PIsListLike list a, PIsListLike list (list a)) =>
     Term
         s
-        ( (a :--> a :--> PBool)
-            :--> (a :--> a :--> PBool)
+        ( (a :--> a :--> POrdering)
             :--> list a
             :--> PBool
         )
 pisUniqBy = phoistAcyclic $
-    plam $ \eq comp xs ->
-        let nubbed = pnubSortBy # eq # comp # xs
+    plam $ \comp xs ->
+        let nubbed = pnubSortBy # comp # xs
          in plength # xs #== plength # nubbed
 
 {- | A special case of 'pisUniqBy' which requires elements have 'POrd' instance.
@@ -202,12 +198,9 @@ pisUniqBy = phoistAcyclic $
 -}
 pisUniq ::
     forall (a :: S -> Type) (s :: S) list.
-    (POrd a, PIsListLike list a, PIsListLike list (list a)) =>
+    (PCompareable a, PIsListLike list a, PIsListLike list (list a)) =>
     Term s (list a :--> PBool)
-pisUniq = phoistAcyclic $ pisUniqBy # eq # comp
-  where
-    eq = phoistAcyclic $ plam (#==)
-    comp = phoistAcyclic $ plam (#<)
+pisUniq = phoistAcyclic $ pisUniqBy # pcompare
 
 {- | A special version of `pmap` which allows list elements to be thrown out.
 
@@ -302,36 +295,32 @@ plookupTuple =
 -}
 pisSortedBy ::
     (PIsListLike list a) =>
-    Term s ((a :--> a :--> PBool) :--> (a :--> a :--> PBool) :--> list a :--> PBool)
+    Term s ((a :--> a :--> POrdering) :--> list a :--> PBool)
 pisSortedBy = phoistAcyclic $
-    plam $ \eq lt l -> pif (pnull # l) (pconstant True) $
+    plam $ \comp l -> pif (pnull # l) (pconstant True) $
         unTermCont $ do
             h <- pletC $ phead # l
             t <- pletC $ ptail # l
-            pure $ go # eq # lt # h # t
+            pure $ go # comp # h # t
   where
-    go = pfix #$ plam $ \self' eq lt x xs ->
-        plet (self' # eq # lt) $ \self ->
+    go = pfix #$ plam $ \self' comp x xs ->
+        plet (self' # comp) $ \self ->
             pif
                 (pnull # xs)
                 (pconstant True)
                 $ plet (phead # xs) $ \x' ->
-                    pif
-                        (eq # x # x' #|| lt # x # x')
-                        (self # x' #$ ptail # xs)
-                        (pconstant False)
+                    pmatch (comp # x # x') $ \case
+                        PGT -> pconstant False
+                        _ -> self # x' #$ ptail # xs
 
 {- | Special version of 'pisSortedBy'.
 
      @since 1.1.0
 -}
 pisSorted ::
-    (PIsListLike list a, POrd a) =>
+    (PIsListLike list a, PCompareable a) =>
     Term s (list a :--> PBool)
-pisSorted = phoistAcyclic $ pisSortedBy # eq # lt
-  where
-    eq = phoistAcyclic $ plam (#==)
-    lt = phoistAcyclic $ plam (#<)
+pisSorted = phoistAcyclic $ pisSortedBy # pcompare
 
 {- | Given an integer @n@ and a term, produce a list containing
 @n@ copies of that term. Non-positive integers yield an empty
