@@ -1,6 +1,16 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{- |
+ Module: Plutarch.Extra.AssetClass
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ Plutarch-level representation of asset classes.
+-}
 module Plutarch.Extra.AssetClass (
     PAssetClass (..),
     passetClass,

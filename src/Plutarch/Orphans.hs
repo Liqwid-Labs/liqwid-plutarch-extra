@@ -6,6 +6,16 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
+{- |
+ Module: Plutarch.Orphans
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+
+ Orphan instances for various Plutarch types.
+-}
 module Plutarch.Orphans () where
 
 import Control.Composition (on, (.*))

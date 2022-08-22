@@ -2,6 +2,14 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+{- |
+ Module: Plutarch.Extra.Applicative
+ Copyright: (C) Liqwid Labs 2022
+ License: Apache 2.0
+ Maintainer: Koz Ross <koz@mlabs.city>
+ Portability: GHC only
+ Stability: Experimental
+-}
 module Plutarch.Extra.Applicative (
     -- * Type classes
     PApply (..),
@@ -24,7 +32,38 @@ import Plutarch.Extra.Functor (PFunctor (PSubcategory))
 import Plutarch.Extra.TermCont (pletC, pmatchC)
 import Plutarch.List (puncons)
 
--- | @since 1.0.0
+{- | 'PFunctor' with the ability to lift a multi-argument function. Similar to
+ 'Applicative' from Haskell, but without 'pure'. Much like 'PFunctor', we
+ allow constraining the parametricity of a 'PApply'.
+
+ = Laws
+
+ Formally, @f@ must be a strong, lax semimonoidal endofunctor on a subcategory
+ of @Plut@, as described by @f@'s 'PSubcategory' constraint. This means that
+ the following must hold:
+
+ * /Pure post-processing:/ @'pfmap' '#' f '#' ('pliftA2' '#' g '#' x '#' y)@
+ @=@ @'pliftF2' '#' ('plam' '$' \z -> (g '#' z) '#>>>' f) '#' x '#' y@
+ * /Pure pre-processing:/ @'pliftF2' '#' f '#' ('pfmap' '#' g '#' x) '#'
+ ('pfmap' '#' h '#' y)@ @=@ @'pliftF2' '#' ('plam' '$' \z1 z2 -> f '#' (g '#'
+ z1) '#' (h '#' z2)) '#' x '#' y@
+
+ If @'PSubcategory' f ~ 'Plut'@, we must also have:
+
+ * /Associativity:/ @'pliftF2' '#' f '#' x '#' ('pliftF2' '#' g '#' y '#' z)@
+ @=@ @'pliftF2' '#' 'papply' '#' ('pliftF2' '#' ('plam' '$' \z1 z2 -> (g '#'
+ z2) '#>>>' (f '#' z1)) '#' x '#' y) '#' z@
+
+ = Note
+
+ If @'PSubcategory' f@ is /not/ 'Plut', this only gives us the ability to lift
+ functions whose arity is /exactly/ two. This is in contrast with Haskell,
+ where being able to lift any arity above 1 gives the ability to lift any
+ arity whatsoever. Since @Plut@ is cartesian closed, we retain the \'arbitrary
+ arity lift\' if @'PSubcategory' f ~ 'Plut'@.
+
+ @since 1.0.0
+-}
 class (PFunctor f) => PApply (f :: (S -> Type) -> S -> Type) where
     pliftA2 ::
         forall (a :: S -> Type) (b :: S -> Type) (c :: S -> Type) (s :: S).
@@ -54,7 +93,14 @@ instance PApply PMaybeData where
                     pure . pcon . PDJust $ pdcons # pdata (f # x' # y') # pdnil
                 _ -> pure . pcon . PDNothing $ pdnil
 
--- | @since 1.0.0
+{- | Describes \'nondeterminism semantics\', similar to the Haskell instance of
+ 'Applicative' for lists. This is because, while it is possible to define
+ \'zippy semantics\' for 'PApply', extending it to 'PApplicative' is
+ impossible, as it would require an infinite or lazy on-chain structure for
+ 'ppure' to make sense.
+
+ @since 1.0.0
+-}
 instance PApply PList where
     pliftA2 = phoistAcyclic $
         pfix
@@ -68,7 +114,11 @@ instance PApply PList where
                         res <- pletC (pmap # plam (\x -> f # x # thead) # xs)
                         pure $ pconcat # res # (self # f # xs # ttail)
 
--- | @since 1.0.0
+{- | Describes \'nondeterminism semantics\', for similar reasons to the 'PList'
+ instance.
+
+ @since 1.0.0
+-}
 instance PApply PBuiltinList where
     pliftA2 = phoistAcyclic $
         pfix
@@ -90,7 +140,8 @@ instance (forall (s :: S). Semigroup (Term s a)) => PApply (PPair a) where
             PPair y1 y2 <- pmatchC ys
             pure . pcon . PPair (x1 <> y1) $ f # x2 # y2
 
-{- | Forwards the /first/ 'PLeft'.
+{- | Forwards the /first/ 'PLeft', similar to the 'Applicative' instance for
+ - 'Either'.
 
  @since 1.0.0
 -}
@@ -104,7 +155,26 @@ instance PApply (PEither e) where
                 (_, PLeft e) -> PLeft e
                 (PRight x, PRight y) -> PRight $ f # x # y
 
--- | @since 1.0.0
+{- | Extends a 'PApply' with the ability to lift arbitrary values.
+
+ = Laws
+
+ Formally, @f@ must be a lax monoidal endofunctor on a subcategory of @Plut@,
+ as described by @f@'s 'PSubcategory' constraint. This means that the
+ following must hold:
+
+ * /Homomorphism:/ @'pliftF2' '#' f '#' ('ppure' '#' x) '#' ('ppure' '#' y)@
+ @=@ @'ppure' '#' (f '#' x '#' y)@
+ * /Interchange:/ @'pliftF2' '#' f '#' ('ppure' '#' x) '#' y@ @=@ @'pliftF2'
+ '#' ('pflip' '#' f) '#' y '#' ('ppure' x)@
+
+ If @'PSubcategory' f ~ 'Plut'@, we must also have:
+
+ * /Identity:/ @'pliftF2' '#' 'papply' '#' ('ppure' '#' f) '#' x@ @=@ @'pfmap'
+ '#' f '#' x@
+
+ @since 1.0.0
+-}
 class (PApply f) => PApplicative (f :: (S -> Type) -> S -> Type) where
     ppure ::
         forall (a :: S -> Type) (s :: S).
@@ -135,7 +205,12 @@ instance (forall (s :: S). Monoid (Term s a)) => PApplicative (PPair a) where
 instance PApplicative (PEither e) where
     ppure = phoistAcyclic $ plam $ pcon . PRight
 
--- | @since 1.0.0
+{- | Plutarch equivalent to '<*>'. This is not a type class method of 'PApply',
+ as in general, we cannot assume a subcategory of @Plut@ will be cartesian
+ closed (that is, contain functions).
+
+ @since 1.0.0
+-}
 (#<*>) ::
     forall (f :: (S -> Type) -> S -> Type) (a :: S -> Type) (b :: S -> Type) (s :: S).
     (PSubcategory f (a :--> b), PSubcategory f a, PSubcategory f b, PApply f) =>
@@ -146,7 +221,12 @@ fs #<*> xs = pliftA2 # papply # fs # xs
 
 infixl 4 #<*>
 
--- | @since 1.0.0
+{- | Plutarch equivalent to '*>'. This could become a method of 'PApply' in the
+ future, but as we don't see many more efficient implementations of this
+ operator possible, we don't currently include it.
+
+ @since 1.0.0
+-}
 (#*>) ::
     forall (f :: (S -> Type) -> S -> Type) (a :: S -> Type) (b :: S -> Type) (s :: S).
     (PSubcategory f a, PSubcategory f b, PApply f) =>
@@ -157,7 +237,12 @@ t #*> t' = pliftA2 # plam (\_ x -> x) # t # t'
 
 infixl 4 #*>
 
--- | @since 1.0.0
+{- | Plutarch equivalent to '<*'. This could become a method of 'PApply' in the
+ future, but as we don't see many more efficient implementations of this
+ operator possible, we don't currently include it.
+
+ @since 1.0.0
+-}
 (#<*) ::
     forall (f :: (S -> Type) -> S -> Type) (a :: S -> Type) (b :: S -> Type) (s :: S).
     (PSubcategory f a, PSubcategory f b, PApply f) =>
