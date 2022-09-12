@@ -18,7 +18,7 @@ import qualified Data.Text as T
 import qualified Data.Text as Text
 import Plutarch (
     Config (Config, tracingMode),
-    TracingMode (DetTracing, NoTracing),
+    TracingMode (NoTracing, DoTracing),
     compile,
  )
 import Plutarch.Evaluate (EvalError, evalScript)
@@ -66,7 +66,7 @@ checkedCompileD ::
     Either Text DebuggableScript
 checkedCompileD term = do
     script <- compile Config{tracingMode = NoTracing} term
-    debugScript <- compile Config{tracingMode = DetTracing} term
+    debugScript <- compile Config{tracingMode = DoTracing} term
     pure $ DebuggableScript{script, debugScript}
 
 -- Like 'mustCompile', but with tracing turned on.
@@ -75,7 +75,7 @@ mustCompileTracing ::
     (forall (s :: S). Term s a) ->
     Script
 mustCompileTracing term =
-    case compile Config{tracingMode = DetTracing} term of
+    case compile Config{tracingMode = DoTracing} term of
         Left err ->
             error $
                 unwords

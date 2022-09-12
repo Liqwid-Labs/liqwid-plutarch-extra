@@ -45,7 +45,7 @@ import Plutarch.Internal (
     RawTerm (RCompiled),
     Term (Term),
     TermResult (TermResult),
-    TracingMode (DetTracing),
+    TracingMode (DoTracing),
     tracingMode,
  )
 import Plutarch.Lift (
@@ -286,7 +286,7 @@ pliftCompiled' ct =
         Left evalError -> Left (LiftError_EvalError evalError, traces)
         Right evaluatedScript ->
             case plift'
-                (Config{tracingMode = DetTracing})
+                (Config{tracingMode = DoTracing})
                 (scriptToTerm @p evaluatedScript) of
                 Right lifted -> Right lifted
                 Left (LiftError_EvalError evalError) ->
@@ -319,7 +319,7 @@ pliftCompiled' ct =
                     ]
             Right evaluatedDebugScript ->
                 case plift'
-                    (Config{tracingMode = DetTracing})
+                    (Config{tracingMode = DoTracing})
                     (scriptToTerm @p evaluatedDebugScript) of
                     Right _ ->
                         error . unlines $
