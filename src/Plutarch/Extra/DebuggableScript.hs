@@ -22,7 +22,7 @@ import Plutarch (
     compile,
  )
 import Plutarch.Evaluate (EvalError, evalScript)
-import Plutarch.Extra.Compile (mustCompile)
+import Plutarch.Extra.Compile (mustCompileNoTracing)
 import PlutusLedgerApi.V1 (ExBudget, Script)
 import UntypedPlutusCore.Evaluation.Machine.Cek (
     CekUserError (CekEvaluationFailure, CekOutOfExError),
@@ -96,7 +96,7 @@ mustCompileD ::
     DebuggableScript
 mustCompileD term =
     DebuggableScript
-        { script = mustCompile term
+        { script = mustCompileNoTracing term
         , debugScript = mustCompileTracing term
         }
 
