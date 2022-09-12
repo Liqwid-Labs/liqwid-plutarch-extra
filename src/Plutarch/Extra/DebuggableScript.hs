@@ -18,7 +18,7 @@ import qualified Data.Text as T
 import qualified Data.Text as Text
 import Plutarch (
     Config (Config, tracingMode),
-    TracingMode (NoTracing, DoTracing),
+    TracingMode (DoTracing, NoTracing),
     compile,
  )
 import Plutarch.Evaluate (EvalError, evalScript)
