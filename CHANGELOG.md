@@ -2,6 +2,14 @@
 
 This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
 
+## 3.6.1 -- 2022-09-12
+
+### Changed
+
+* Changed `mustCompile` to `mustCompileNoTracing`. `mustCompile` formerly used
+  `DetTracing`, which compiles in line-numbers to the scripts to give better
+  debugging information; this can cause tests to fail in strange ways.
+
 ## 3.5.0 -- 2022-08-30
 
 ### Added
