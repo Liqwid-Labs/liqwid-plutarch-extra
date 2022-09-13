@@ -17,24 +17,43 @@ module Plutarch.Extra.Ord (
     -- * Types
     POrdering (..),
     PComparator,
+    PSortedList,
 
     -- * Functions
 
-    -- ** Creating comparators
+    -- ** Comparators
+
+    -- *** Creation
     pfromOrd,
     pfromOrdBy,
 
-    -- ** Transforming comparators
+    -- *** Transformation
     pmapComparator,
     preverseComparator,
 
-    -- ** Using comparators
-
-    -- *** Basic
+    -- *** Running a comparator
     pcompareBy,
     pequateBy,
     pleqBy,
     pgeqBy,
+
+    -- ** Sorted lists
+
+    -- ** Creation
+    psempty,
+    pssingleton,
+
+    -- ** Modification
+    psinsert,
+
+    -- ** Elimination
+    pelimSortedList,
+
+    -- ** Conversion
+    pfromSorted,
+    ptoSorted,
+
+    -- ** Sorting and nubbing
 
     -- *** Sortedness checking
     pisSortedBy,
@@ -72,6 +91,7 @@ import Plutarch.Lift (
     PUnsafeLiftDecl (PLifted),
  )
 import Plutarch.List (pconvertLists)
+import Plutarch.Show (PShow (pshow'))
 import Plutarch.Unsafe (punsafeCoerce)
 
 {- | A representation of a comparison at the Plutarch level. Equivalent to
@@ -174,6 +194,122 @@ instance DerivePlutusType (PComparator a) where
     type DPTStrat _ = PlutusTypeScott
 
 -- TODO: Semigroup, Monoid
+
+{- | Similar to 'PList', but ensures its contents remain sorted according to the
+ 'POrd' instance of @a@.
+
+ = Note
+
+ We do /not/ derive 'Generic' for this type, as that would leak its
+ internals.
+
+ @since 3.6.1
+-}
+newtype PSortedList (a :: S -> Type) (s :: S)
+    = PSortedList (Term s (PList a))
+
+-- | @since 3.6.1
+instance PlutusType (PSortedList a) where
+    type PInner (PSortedList a) = PList a
+    pcon' (PSortedList t) = t
+    pmatch' x f = f (PSortedList x)
+
+-- | @since 3.6.1
+instance (PEq a) => PEq (PSortedList a) where
+    x #== y = pto x #== pto y
+
+-- | @since 3.6.1
+instance (PShow a) => PShow (PSortedList a) where
+    pshow' b = pshow' b . pto
+
+-- TODO: PPartialOrd, POrd, Semigroup, Monoid
+
+{- | Constructs an empty 'PSortedList'.
+
+ @since 3.6.1
+-}
+psempty ::
+    forall (a :: S -> Type) (s :: S).
+    Term s (PSortedList a)
+psempty = pcon $ PSortedList pnil
+
+{- | Constructs a singleton 'PSortedList'.
+
+ @since 3.6.1
+-}
+pssingleton ::
+    forall (a :: S -> Type) (s :: S).
+    Term s (a :--> PSortedList a)
+pssingleton = phoistAcyclic $
+    plam $ \x ->
+        pcon . PSortedList $ psingleton # x
+
+{- | Inserts an element into an existing 'PSortedList'.
+
+ @since 3.6.1
+-}
+psinsert ::
+    forall (a :: S -> Type) (s :: S).
+    (POrd a) =>
+    Term s (a :--> PSortedList a :--> PSortedList a)
+psinsert = phoistAcyclic $
+    plam $ \x xs ->
+        phandleList (pto xs) (pssingleton # x) $ \y ys ->
+            pcon . PSortedList $ (pfix #$ plam go) # x # y # ys
+  where
+    go ::
+        forall (s' :: S).
+        Term s' (a :--> a :--> PList a :--> PList a) ->
+        Term s' a ->
+        Term s' a ->
+        Term s' (PList a) ->
+        Term s' (PList a)
+    go self x y ys =
+        pif
+            (x #<= y)
+            (pcons # x #$ pcons # y #$ ys)
+            ( phandleList ys (pcons # y #$ psingleton # x) $ \y' ys' ->
+                pcons # y #$ self # x # y' # ys'
+            )
+
+{- | General eliminator for 'PSortedList's.
+
+ @since 3.6.1
+-}
+pelimSortedList ::
+    forall (a :: S -> Type) (r :: S -> Type) (s :: S).
+    (Term s a -> Term s (PSortedList a) -> Term s r) ->
+    Term s r ->
+    Term s (PSortedList a) ->
+    Term s r
+pelimSortedList whenCons whenNil xs =
+    phandleList (pto xs) whenNil $ \x' xs' ->
+        whenCons x' . pcon . PSortedList $ xs'
+
+{- | \'Forget\' about the sortedness of a 'PSortedList'. Equivalent to a use of
+ 'convertLists', but /much/ faster.
+
+ @since 3.6.1
+-}
+pfromSorted ::
+    forall (a :: S -> Type) (s :: S).
+    Term s (PSortedList a :--> PList a)
+pfromSorted = phoistAcyclic $ plam pto
+
+{- | Convert a 'PList' full of a 'POrd' instance into a 'PSortedList'. This
+ calls 'psort' internally, so all performance caveats of 'psort' apply.
+
+ @since 3.6.1
+-}
+ptoSorted ::
+    forall (a :: S -> Type) (s :: S).
+    (POrd a) =>
+    Term s (PList a :--> PSortedList a)
+ptoSorted = phoistAcyclic $
+    plam $ \xs ->
+        let cmp = pfromOrd @a
+         in pcon . PSortedList $
+                pmergeAllUnsafe cmp (const id) pmergeUnsafe #$ pmergeStart_2_3_4 # cmp # xs
 
 {- | Given a type with a 'POrd' instance, construct a 'PComparator' from that
  instance.
