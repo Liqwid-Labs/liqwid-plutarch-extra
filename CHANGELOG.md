@@ -8,6 +8,8 @@ This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
 
 * `PSortedList` in `Plutarch.Extra.Ord`, similar to `PList`, but maintains
   order.
+* `PSortedDataList` in `Plutarch.Extra.Ord`, similar to `PBuiltinList`, but
+  maintains order.
 
 ## 3.6.0 -- 2022-09-14
 

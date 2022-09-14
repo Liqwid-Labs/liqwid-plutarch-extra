@@ -18,6 +18,7 @@ module Plutarch.Extra.Ord (
     POrdering (..),
     PComparator,
     PSortedList,
+    PSortedDataList,
 
     -- * Functions
 
@@ -39,19 +40,23 @@ module Plutarch.Extra.Ord (
 
     -- ** Sorted lists
 
-    -- ** Creation
+    -- *** Creation
     psempty,
+    psdempty,
     pssingleton,
+    psdsingleton,
 
-    -- ** Modification
+    -- *** Modification
     psinsert,
+    psdinsert,
 
-    -- ** Elimination
+    -- *** Elimination
     pelimSortedList,
+    pelimSortedDataList,
 
-    -- ** Conversion
-    pfromSorted,
+    -- *** Conversion
     ptoSorted,
+    ptoSortedData,
 
     -- ** Sorting and nubbing
 
@@ -203,6 +208,11 @@ instance DerivePlutusType (PComparator a) where
  We do /not/ derive 'Generic' for this type, as that would leak its
  internals.
 
+ = Note on conversions
+
+ As 'PSortedList' is not able to be an instance of 'PListLike', if you want to
+ convert to 'PList' specifically, use 'pupcast' instead.
+
  @since 3.6.1
 -}
 newtype PSortedList (a :: S -> Type) (s :: S)
@@ -286,16 +296,6 @@ pelimSortedList whenCons whenNil xs =
     phandleList (pto xs) whenNil $ \x' xs' ->
         whenCons x' . pcon . PSortedList $ xs'
 
-{- | \'Forget\' about the sortedness of a 'PSortedList'. Equivalent to a use of
- 'convertLists', but /much/ faster.
-
- @since 3.6.1
--}
-pfromSorted ::
-    forall (a :: S -> Type) (s :: S).
-    Term s (PSortedList a :--> PList a)
-pfromSorted = phoistAcyclic $ plam pto
-
 {- | Convert a 'PList' full of a 'POrd' instance into a 'PSortedList'. This
  calls 'psort' internally, so all performance caveats of 'psort' apply.
 
@@ -309,6 +309,132 @@ ptoSorted = phoistAcyclic $
     plam $ \xs ->
         let cmp = pfromOrd @a
          in pcon . PSortedList $
+                pmergeAllUnsafe cmp (const id) pmergeUnsafe #$ pmergeStart_2_3_4 # cmp # xs
+
+{- | Similar to 'PBuiltinList', but ensures its contents remain sorted according
+ to the 'POrd' instance of @a@.
+
+ = Note
+
+ We do /not/ derive 'Generic' for this type, as that would leak its internals.
+
+ = Note on conversions
+
+ As 'PSortedDataList' is not able to be an instance of 'PListLike', if you
+ want to convert to 'PBuiltinList' specifically, use 'pupcast' instead.
+
+ @since 3.6.1
+-}
+newtype PSortedDataList (a :: S -> Type) (s :: S)
+    = PSortedDataList (Term s (PBuiltinList a))
+
+-- | @since 3.6.1
+instance PlutusType (PSortedDataList a) where
+    type PInner (PSortedDataList a) = PBuiltinList a
+    pcon' (PSortedDataList t) = t
+    pmatch' x f = f (PSortedDataList x)
+
+-- | @since 3.6.1
+instance (PUnsafeLiftDecl a, PEq a) => PEq (PSortedDataList a) where
+    -- We have to do this by hand, as otherwise, we have to add constraints based
+    -- on an invisible type class and family
+    xs #== ys = (pfix #$ plam go) # pto xs # pto ys
+      where
+        go ::
+            forall (s :: S).
+            Term s (PBuiltinList a :--> PBuiltinList a :--> PBool) ->
+            Term s (PBuiltinList a) ->
+            Term s (PBuiltinList a) ->
+            Term s PBool
+        go self xs' ys' = phandleList xs' (pnull # ys') $ \x'' xs'' ->
+            phandleList ys' (pcon PFalse) $ \y'' ys'' ->
+                pif (x'' #== y'') (self # xs'' # ys'') (pcon PFalse)
+
+-- | @since 3.6.1
+instance (PShow a, PUnsafeLiftDecl a) => PShow (PSortedDataList a) where
+    pshow' b = pshow' b . pto
+
+-- TODO: PPartialOrd, POrd, Semigroup, Monoid
+
+{- | Constructs an empty 'PSortedDataList'.
+
+ @since 3.6.1
+-}
+psdempty ::
+    forall (a :: S -> Type) (s :: S).
+    (PUnsafeLiftDecl a) =>
+    Term s (PSortedDataList a)
+psdempty = pcon $ PSortedDataList pnil
+
+{- | Constructs a singleton 'PSortedDataList'.
+
+ @since 3.6.1
+-}
+psdsingleton ::
+    forall (a :: S -> Type) (s :: S).
+    (PUnsafeLiftDecl a) =>
+    Term s (a :--> PSortedDataList a)
+psdsingleton = phoistAcyclic $
+    plam $ \x ->
+        pcon . PSortedDataList $ psingleton # x
+
+{- | Inserts an element into an existing 'PSortedDataList'.
+
+ @since 3.6.1
+-}
+psdinsert ::
+    forall (a :: S -> Type) (s :: S).
+    (POrd a, PUnsafeLiftDecl a) =>
+    Term s (a :--> PSortedDataList a :--> PSortedDataList a)
+psdinsert = phoistAcyclic $
+    plam $ \x xs ->
+        phandleList (pto xs) (psdsingleton # x) $ \y ys ->
+            pcon . PSortedDataList $ (pfix #$ plam go) # x # y # ys
+  where
+    go ::
+        forall (s' :: S).
+        Term s' (a :--> a :--> PBuiltinList a :--> PBuiltinList a) ->
+        Term s' a ->
+        Term s' a ->
+        Term s' (PBuiltinList a) ->
+        Term s' (PBuiltinList a)
+    go self x y ys =
+        pif
+            (x #<= y)
+            (pcons # x #$ pcons # y #$ ys)
+            ( phandleList ys (pcons # y #$ psingleton # x) $ \y' ys' ->
+                pcons # y #$ self # x # y' # ys'
+            )
+
+{- | General eliminator for 'PSortedDataList's.
+
+ @since 3.6.1
+-}
+pelimSortedDataList ::
+    forall (a :: S -> Type) (r :: S -> Type) (s :: S).
+    (PUnsafeLiftDecl a) =>
+    (Term s a -> Term s (PSortedDataList a) -> Term s r) ->
+    Term s r ->
+    Term s (PSortedDataList a) ->
+    Term s r
+pelimSortedDataList whenCons whenNil xs =
+    phandleList (pto xs) whenNil $ \x' xs' ->
+        whenCons x' . pcon . PSortedDataList $ xs'
+
+{- | Convert a 'PBuiltinList' full of a 'POrd' instance into a
+ 'PSortedDataList'. This calls 'psort' internally, so all performance caveats
+ of 'psort' apply.
+
+ @since 3.6.1
+-}
+ptoSortedData ::
+    forall (a :: S -> Type) (s :: S).
+    (POrd a, PUnsafeLiftDecl a) =>
+    Term s (PBuiltinList a :--> PSortedDataList a)
+ptoSortedData = phoistAcyclic $
+    plam $ \xs ->
+        let cmp = pfromOrd @a
+         in pcon . PSortedDataList $
                 pmergeAllUnsafe cmp (const id) pmergeUnsafe #$ pmergeStart_2_3_4 # cmp # xs
 
 {- | Given a type with a 'POrd' instance, construct a 'PComparator' from that
