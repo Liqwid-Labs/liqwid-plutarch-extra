@@ -47,10 +47,12 @@ import Plutarch.Api.V1 (
   PTokenName,
  )
 import Plutarch.DataRepr (PDataFields)
+{-
 import Plutarch.Extra.IsData (
   DerivePConstantViaDataList (DerivePConstantViaDataList),
   ProductIsData (ProductIsData),
  )
+-}
 import Plutarch.Extra.Record (mkRecordConstr, (.&), (.=))
 import Plutarch.Lift (
   PConstantDecl,

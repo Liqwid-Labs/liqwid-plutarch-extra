@@ -2,6 +2,12 @@
 
 This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
 
+## 3.10.0 -- 2022-10-05
+
+## Removed
+
+* `Plutarch.Extra.IsData`, which is now subsumed by two other modules.
+
 ## 3.9.1 -- 2022-09-29
 
 ### Added

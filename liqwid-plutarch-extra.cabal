@@ -1,6 +1,6 @@
 cabal-version:      3.0
 name:               liqwid-plutarch-extra
-version:            3.9.1
+version:            3.10.0
 synopsis:           A collection of Plutarch extras from Liqwid Labs
 description:        Several useful data types and functions for Plutarch.
 homepage:           https://github.com/Liqwid-Labs/liqwid-plutarch-extra
@@ -28,7 +28,6 @@ common common-lang
     -Wall -Wcompat -Wincomplete-uni-patterns
     -Wincomplete-record-updates -Wredundant-constraints
     -Wmissing-export-lists -Wmissing-deriving-strategies -Werror
-    -Wno-partial-type-signatures
 
   mixins:
     base hiding (Prelude),
@@ -102,13 +101,13 @@ library
     Plutarch.Extra.Function
     Plutarch.Extra.Functor
     Plutarch.Extra.Identity
-    Plutarch.Extra.IsData
     Plutarch.Extra.List
     Plutarch.Extra.Map
     Plutarch.Extra.Monoid
     Plutarch.Extra.MultiSig
     Plutarch.Extra.Numeric
     Plutarch.Extra.Ord
+    Plutarch.Extra.PlutusType
     Plutarch.Extra.Precompile
     Plutarch.Extra.Profunctor
     Plutarch.Extra.Rational
@@ -133,6 +132,7 @@ library
     , containers
     , data-default
     , deepseq
+    , first-class-families
     , generics-sop
     , lens
     , optics-core

@@ -29,19 +29,6 @@ import Data.Kind (Constraint)
 import Data.Maybe (fromJust)
 import Data.Proxy (Proxy (Proxy))
 import GHC.TypeLits (ErrorMessage (ShowType, Text, (:$$:), (:<>:)), TypeError)
-import Generics.SOP (
-  All,
-  IsProductType,
-  hcmap,
-  hcollapse,
-  hctraverse,
-  mapIK,
-  mapKI,
-  productTypeFrom,
-  productTypeTo,
-  unI,
- )
-import qualified Generics.SOP as SOP
 import Plutarch.Builtin (pasInt)
 import Plutarch.Extra.TermCont (pletC)
 import Plutarch.Internal.Generic (PCode, PGeneric, gpfrom, gpto)
