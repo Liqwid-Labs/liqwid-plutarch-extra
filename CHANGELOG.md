@@ -4,6 +4,22 @@ This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
 
 ## 3.10.0 -- 2022-10-05
 
+## Added
+
+* `Plutarch.Extra.PlutusType` module:
+  * Strategy for deriving `PlutusType` via being equivalent to a `PDataRecord`.
+  * Derivation helper for `PConstantDecl` for Haskell equivalents to (wrappers
+    around) `PDataRecord`.
+* `Plutarch.Extra.Lift` module:
+  * Derivation helper for `FromData`, `ToData` and `UnsafeFromData` for Haskell
+    equivalents to (wrappers around) `PDataRecord`, provided all their fields
+    have appropriate instances.
+
+## Modified
+
+* `AssetClassData` no longer derives a SOP `Generic` instance, as it isn't
+  needed anymore.
+
 ## Removed
 
 * `Plutarch.Extra.IsData`, which is now subsumed by two other modules.

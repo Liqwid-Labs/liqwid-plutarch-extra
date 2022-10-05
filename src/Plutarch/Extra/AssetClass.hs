@@ -40,13 +40,15 @@ import Data.Aeson (FromJSON, FromJSONKey, ToJSON, ToJSONKey)
 import qualified Data.Aeson as Aeson
 import Data.Tagged (Tagged, untag)
 import GHC.TypeLits (Symbol)
-import qualified Generics.SOP as SOP
 import Optics.TH (makeFieldLabelsNoPrefix)
 import Plutarch.Api.V1 (
   PCurrencySymbol,
   PTokenName,
  )
 import Plutarch.DataRepr (PDataFields)
+import Plutarch.Extra.Lift (RecordIsData (RecordIsData))
+import Plutarch.Extra.PlutusType (LiftingPDataRecord (LiftingPDataRecord))
+
 {-
 import Plutarch.Extra.IsData (
   DerivePConstantViaDataList (DerivePConstantViaDataList),
@@ -224,8 +226,6 @@ data AssetClassData = AssetClassData
       Aeson.FromJSONKey
     , -- | @since 3.9.0
       Aeson.ToJSONKey
-    , -- | @since 3.9.0
-      SOP.Generic
     )
   deriving
     ( -- | @since 3.9.0
@@ -233,14 +233,14 @@ data AssetClassData = AssetClassData
     , -- | @since 3.9.0
       PlutusTx.FromData
     )
-    via Plutarch.Extra.IsData.ProductIsData AssetClassData
+    via RecordIsData AssetClassData
   deriving
     ( -- | @since 3.9.0
       Plutarch.Lift.PConstantDecl
     )
-    via ( Plutarch.Extra.IsData.DerivePConstantViaDataList
-            AssetClassData
+    via ( LiftingPDataRecord
             PAssetClassData
+            AssetClassData
         )
 
 {- | Plutarch equivalent of 'AssetClassData'.

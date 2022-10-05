@@ -101,6 +101,7 @@ library
     Plutarch.Extra.Function
     Plutarch.Extra.Functor
     Plutarch.Extra.Identity
+    Plutarch.Extra.Lift
     Plutarch.Extra.List
     Plutarch.Extra.Map
     Plutarch.Extra.Monoid
