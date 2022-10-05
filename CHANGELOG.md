@@ -24,6 +24,12 @@ This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
 
 * `Plutarch.Extra.IsData`, which is now subsumed by two other modules.
 
+## 3.9.2 -- 2022-10-04
+
+### Added
+
+* `Plutarch.Extra.StateThread`, with a state thread implementation.
+
 ## 3.9.1 -- 2022-09-29
 
 ### Added
