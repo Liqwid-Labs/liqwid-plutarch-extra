@@ -143,6 +143,7 @@ library
     , plutarch-numeric
     , plutus-core
     , serialise
+    , sop-core
     , tagged
     , text
 

@@ -1,11 +1,15 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE UndecidableSuperClasses #-}
 
 module Plutarch.Extra.PlutusType (
   -- * Derivation strategies
   PlutusTypeRecord,
+  PlutusTypeEnumData,
 
   -- * Derivation helpers for PUnsafeLiftDecl and PConstantDecl
   LiftingPDataRecord (..),
@@ -13,28 +17,43 @@ module Plutarch.Extra.PlutusType (
 
 import Data.Kind (Constraint)
 import Data.Proxy (Proxy (Proxy))
-import Fcf (Eval, Exp, Map)
+import Data.SOP.NS (ana_NS, cmap_NS, map_NS)
+import Fcf (Eval, Exp, Length, Map, type (++))
+import GHC.Generics (Rep)
 import GHC.TypeLits (
   ErrorMessage (ShowType, Text, (:$$:), (:<>:)),
   TypeError,
  )
+import GHC.TypeNats (KnownNat, natVal)
 import Generics.SOP (
   All,
   I,
+  K (K),
   NP (Nil, (:*)),
   NS (S, Z),
   SOP (SOP),
+  Shape (ShapeCons, ShapeNil),
+  Top,
+  apFn,
+  apInjs_NP,
   hcmap,
   hcollapse,
   hctraverse,
+  hindex,
+  hliftA,
+  hmap,
+  injections,
   mapIK,
   mapKI,
+  shape,
   unI,
+  unK,
   unSOP,
   unZ,
+  type (-.->),
  )
 import qualified Generics.SOP as SOP
-import Generics.SOP.Constraint (Head, SameShapeAs)
+import Generics.SOP.Constraint (Head, SameShapeAs, Tail)
 import Generics.SOP.GGP (GCode, GFrom, GTo, gfrom, gto)
 import Plutarch.DataRepr (PFields)
 import Plutarch.Internal.Generic (PCode, PGeneric, gpfrom, gpto)
@@ -88,6 +107,64 @@ instance PlutusTypeStrat PlutusTypeRecord where
     -- This is an impossible case.
     SOP (S x') -> case x' of {}
   derivedPMatch rec f = f . gpto . SOP . Z $ rec :* Nil
+
+{- | A 'PlutusType' derivation strategy designed for use with 'Data'-encoded
+ types that are true enums: that is, sum types with no data in their variants.
+ Underneath, this works by converting to a 'PInteger'.
+
+ @since 3.10.0
+-}
+data PlutusTypeEnumData
+
+-- | @since 3.10.0
+instance PlutusTypeStrat PlutusTypeEnumData where
+  type PlutusTypeStratConstraint PlutusTypeEnumData = IsPlutusTypeEnumData
+  type DerivedPInner PlutusTypeEnumData a = PInteger
+  {-# INLINE derivedPCon #-}
+  derivedPCon =
+    pconstant
+      . fromIntegral
+      . hindex
+      . map_NS (const (K ()))
+      . unSOP
+      . gfrom
+  {-# INLINE derivedPMatch #-}
+  derivedPMatch ::
+    forall (a :: S -> Type) (s :: S) (b :: S -> Type).
+    (DerivePlutusType a, DPTStrat a ~ PlutusTypeEnumData) =>
+    Term s PInteger ->
+    (a s -> Term s b) ->
+    Term s b
+  derivedPMatch ix f = go @'[] @(PCode a) 0
+    where
+      go ::
+        forall (pref :: [[S -> Type]]) (suff :: [[S -> Type]]).
+        (All ((~) '[]) pref, All ((~) '[]) suff) =>
+        Term s PInteger ->
+        Term s b
+      go acc =
+        pif
+          (acc #== ix)
+          (f . gpto . SOP . addSuccs @pref $ Nil @_ @suff)
+          (go @('[] ': pref) @(Tail suff) (acc + 1))
+
+{-
+derivedPMatch ix f = go 0 . hcollapse . hmap cookNP $ injections @(PCode a) @(NP (Term s))
+  where
+    cookNP :: forall (x :: [S -> Type]) .
+      (All Top x) =>
+      (-.->) (NP (Term s)) (K (NS (NP (Term s)) (PCode a))) x ->
+      K (NS (NP (Term s)) (PCode a)) x
+    cookNP g = apFn g $ mkTrivialNP @x
+    go :: Term s PInteger ->
+      [NS (NP (Term s)) (PCode a)] ->
+      Term s b
+    go acc = \case
+      [] -> error "derivedPMatch for PlutusTypeEnumData: this is a bug, please let us know"
+      (var : vars) -> pif (acc #== ix)
+                          (f . gpto . SOP $ var)
+                          (go (acc + 1) vars)
+-}
 
 {- | Derivation helper for deriving 'PConstantDecl' for the Haskell equivalent
  of a Plutus record.
@@ -248,3 +325,22 @@ type family UD' (p :: S -> Type) :: S -> Type where
   UD' (p x1 x2) = p (UD' x1) (UD' x2)
   UD' (p x1) = p (PAsData (UD' x1))
   UD' p = p
+
+-- Another 'constraint summarizer'
+
+class
+  ( -- The Plutarch type needs to be an instance of Generic
+    PGeneric p
+  , -- We need to be a 'pure enum': a sum type whose variants contain no data
+    All ((~) '[]) (PCode p)
+  , -- We must have at least one variant
+    Head (PCode p) ~ '[]
+  ) =>
+  IsPlutusTypeEnumData p
+
+instance
+  ( PGeneric p
+  , All ((~) '[]) (PCode p)
+  , Head (PCode p) ~ '[]
+  ) =>
+  IsPlutusTypeEnumData p
