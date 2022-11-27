@@ -1,9 +1,8 @@
 {-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE TypeApplications #-}
 
-module Main (main) where
+module OrdProp (tests) where
 
-import GHC.IO.Encoding (setLocaleEncoding, utf8)
 import Plutarch.Extra.Maybe (pisJust, ptraceIfNothing)
 import Plutarch.Extra.Ord (
   PComparator,
@@ -15,23 +14,27 @@ import Plutarch.Extra.Ord (
   psortBy,
  )
 import Plutarch.Test.QuickCheck (PA, TestableTerm (TestableTerm), fromPFun)
-import Test.QuickCheck (Property, arbitrary, forAllShrinkShow, scale, shrink)
-import Test.Tasty (adjustOption, defaultMain, testGroup)
+import Test.QuickCheck (
+  Property,
+  arbitrary,
+  forAllShrinkShow,
+  scale,
+  shrink,
+ )
+import Test.Tasty (TestTree, adjustOption, testGroup)
 import Test.Tasty.QuickCheck (QuickCheckTests, testProperty)
 
-main :: IO ()
-main = do
-  setLocaleEncoding utf8
-  defaultMain . adjustOption go . testGroup "Properties" $
-    [ testGroup
-        "Plutarch.Extra.Ord"
-        [ testProperty "sorted lists should prove sorted" propSortedList
-        , testProperty "singleton lists are always sorted" propSortedSingleton
-        , testProperty "nubbed lists should prove ordered" propNubList
-        , testProperty "nubbed lists should prove unique" propNubList'
-        , testProperty "singleton lists are always nubbed" propNubSingleton
-        ]
-    ]
+tests :: TestTree
+tests =
+  adjustOption go $
+    testGroup
+      "Plutarch.Extra.Ord"
+      [ testProperty "sorted lists should prove sorted" propSortedList
+      , testProperty "singleton lists are always sorted" propSortedSingleton
+      , testProperty "nubbed lists should prove ordered" propNubList
+      , testProperty "nubbed lists should prove unique" propNubList'
+      , testProperty "singleton lists are always nubbed" propNubSingleton
+      ]
   where
     go :: QuickCheckTests -> QuickCheckTests
     go = max 1000

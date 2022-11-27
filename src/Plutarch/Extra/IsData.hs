@@ -1,6 +1,5 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE QuantifiedConstraints #-}
-{-# LANGUAGE UndecidableInstances #-}
 
 module Plutarch.Extra.IsData (
   -- * PlutusTx ToData/FromData derive-wrappers
@@ -155,10 +154,10 @@ type family MatchTypesError (n :: [S -> Type]) (m :: [S -> Type]) (a :: Bool) ::
             ':$$: 'Text "\tMismatch between constituent Haskell and Plutarch types"
             ':$$: 'Text "Constituent Haskell Types: "
             ':$$: 'Text "\t"
-            ':<>: 'ShowType n
+              ':<>: 'ShowType n
             ':$$: 'Text "Constituent Plutarch Types: "
             ':$$: 'Text "\t"
-            ':<>: 'ShowType m
+              ':<>: 'ShowType m
         )
     )
 

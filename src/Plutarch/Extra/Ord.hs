@@ -19,6 +19,10 @@ module Plutarch.Extra.Ord (
 
   -- * Functions
 
+  -- ** POrd functions
+  pmax,
+  pmin,
+
   -- ** Creating comparators
   pfromOrd,
   pfromOrdBy,
@@ -36,6 +40,8 @@ module Plutarch.Extra.Ord (
   plessThanBy,
   pgeqBy,
   pgreaterThanBy,
+  pmaxBy,
+  pminBy,
 
   -- *** Data structures
 
@@ -71,6 +77,9 @@ module Plutarch.Extra.Ord (
   -- *** Nubbing
   pnubSort,
   pnubSortBy,
+
+  -- *** Inserting
+  pinsertUniqueBy,
 ) where
 
 import Data.Semigroup (Semigroup (stimes), stimesIdempotentMonoid)
@@ -81,6 +90,7 @@ import Plutarch.Api.V1.Value (
   PTokenName,
   PValue,
  )
+import Plutarch.Bool (pif')
 import Plutarch.Extra.List (phandleList, precListLookahead)
 import Plutarch.Extra.Map (phandleMin)
 import Plutarch.Extra.Maybe (ptraceIfNothing)
@@ -96,6 +106,34 @@ import Plutarch.Lift (
  )
 import Plutarch.List (pconvertLists)
 import Plutarch.Unsafe (punsafeCoerce)
+
+{- | Return the minimum of two arguments.
+
+  @since 3.15.4
+-}
+pmin ::
+  forall (a :: S -> Type) (s :: S).
+  POrd a =>
+  Term s (a :--> a :--> a)
+pmin = phoistAcyclic $ plam $ \x y ->
+  pif'
+    # (x #<= y)
+    # x
+    # y
+
+{- | Return the maximum of two arguments.
+
+  @since 3.15.4
+-}
+pmax ::
+  forall (a :: S -> Type) (s :: S).
+  POrd a =>
+  Term s (a :--> a :--> a)
+pmax = phoistAcyclic $ plam $ \x y ->
+  pif'
+    # (x #<= y)
+    # y
+    # x
 
 {- | A representation of a comparison at the Plutarch level. Equivalent to
  'Ordering' in Haskell.
@@ -236,7 +274,8 @@ pmapComparator = phoistAcyclic $
   plam $ \f cmp ->
     pmatch cmp $ \(PComparator peq ple) ->
       pcon . PComparator (plam $ \x y -> peq # (f # x) # (f # y)) $
-        plam $ \x y -> ple # (f # x) # (f # y)
+        plam $
+          \x y -> ple # (f # x) # (f # y)
 
 {- | Reverses the ordering described by a 'PComparator'.
 
@@ -329,6 +368,36 @@ pgreaterThanBy = phoistAcyclic $
   plam $ \cmp x y ->
     pmatch cmp $ \(PComparator peq ple) ->
       pnot #$ (peq # x # y) #|| (ple # x # y)
+
+{- | Uses a 'PComparator' to return the minimum of two arguments
+
+   @since 3.15.4
+-}
+pminBy ::
+  forall (a :: S -> Type) (s :: S).
+  Term s (PComparator a :--> a :--> a :--> a)
+pminBy = phoistAcyclic $
+  plam $ \cmp x y ->
+    pmatch cmp $ \(PComparator _ ple) ->
+      pif'
+        # (ple # x # y)
+        # x
+        # y
+
+{- | Uses a 'PComparator' to return the maximum of two arguments
+
+     @since 3.15.4
+-}
+pmaxBy ::
+  forall (a :: S -> Type) (s :: S).
+  Term s (PComparator a :--> a :--> a :--> a)
+pmaxBy = phoistAcyclic $
+  plam $ \cmp x y ->
+    pmatch cmp $ \(PComparator _ ple) ->
+      pif'
+        # (ple # x # y)
+        # y
+        # x
 
 {- | Compares two sorted 'PMap's using a 'PComparator' on their values.
  Specifically, this returns 'PTrue' if, for any key in both argument 'PMap's,
@@ -1028,3 +1097,31 @@ pcmpValue self doCmp cmp k1 k2 v1 v2 kv1 kv2 = pmatch (pcompareBy # pfromOrd # k
   -- Need to advance the second key.
   PGT -> phandleMin kv2 (pcon PTrue) $ \k2' v2' kv2' ->
     self # doCmp # cmp # k1 # k2' # v1 # v2' # kv1 # kv2'
+
+{- | Insert a value to a list with no duplicate, assuming the list is sorted
+     in ascending order. Error out if the value is already in the list.
+
+     @since 3.14.1
+-}
+pinsertUniqueBy ::
+  forall (list :: PType -> PType) (a :: PType) (s :: S).
+  (PIsListLike list a) =>
+  Term s (PComparator a :--> a :--> list a :--> list a)
+pinsertUniqueBy = phoistAcyclic $
+  plam $ \c x ->
+    let lt = plessThanBy # c
+        eq = pequateBy # c
+     in precList
+          ( \self h t ->
+              let ensureUniqueness =
+                    pif
+                      (eq # x # h)
+                      (ptraceError "inserted value already exists")
+                  next =
+                    pif
+                      (lt # x # h)
+                      (pcons # x #$ pcons # h # t)
+                      (pcons # h #$ self # t)
+               in ensureUniqueness next
+          )
+          (const $ psingleton # x)

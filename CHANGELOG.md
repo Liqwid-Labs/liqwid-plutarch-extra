@@ -2,13 +2,269 @@
 
 This format is based on [Keep A Changelog](https://keepachangelog.com/en/1.0.0).
 
+## 3.17.0 -- 2022-11-25
+
+### Modified
+
+* `ToData` instance for `FixedDecimal` now also serializes its type-level tag.
+* `FromData` and `UnsafeFromData` instances for `FixedDecimal` now inspect the
+  serialized type-level tag to ensure it matches safely.
+* `PConstantDecl` for `FixedDecimal` and `PUnsafeLiftDecl` for `PFixedDecimal`
+  gain `KnownNat` constraints.
+* `PConstantRepr (FixedDecimal unit)` is now `Data`, and `pconstantFromRepr` and
+  `pconstantToRepr` defer to the `Data` representation.
+
+## 3.16.0 -- 2022-11-21
+
+### Added
+
+* `ToJSON` and `FromJSON` orphan instances for `PubKeyHash`.
+
+## 3.15.4 -- 2022-11-21
+
+### Added
+
+* `pmax`, `pmin` operating on two terms with a `POrd` instance
+* `pmaxBy`, `pminBy`, taking a `PComparator` directly
+
+## 3.15.3 -- 2022-11-17
+
+### Added
+
+* `eqClasses`, a Haskell equivalent to `peqClasses`.
+* `unsafeToAssetClass`, a Haskell equivalent to `punsafeToAssetClass`.
+
+## 3.15.2 -- 2022-11-15
+
+### Added
+
+* `HasLabelled`, a generalization of `HasLabelledGetters` allowing for any type
+  of optic.
+* `guarantee` and `guarantees`, which parallel `preview` and `previews`, but
+  with a default if they 'miss'.
+
+### Modified
+
+* `HasLabelledGetters` is now a synonym for `HasLabelled A_Getter`.
+* `HasLabelledGetters` is marked `DEPRECATED`, and will be removed in the next
+  major release.
+
+## 3.15.1 -- 2022-11-14
+
+### Added
+
+* `extendedAdaClass` and `pextendedAdaClass` constants for convenience.
+* `isExtendedAdaClass` to quickly determine whether we have the ADA extended
+  asset class, along with its Plutarch equivalent `pisExtendedAdaClass`.
+
+## 3.15.0 -- 2022-11-11
+
+### Added
+
+* Explain why `punsafeToAssetClassData` and `punsafeToAssetClass` are dangerous
+  conversions in general.
+
+### Changed
+
+* `ptoAssetClass` and `ptoAssetClassData` renamed to `punsafeToAssetClass` and
+  `punsafeToAssetClassData` respectively.
+
+## 3.14.6 -- 2022-11-11
+
+### Added
+
+* `pextendedAssetClassValueOf'`, a parallel to `passetClassValueOf'`.
+
+## 3.14.5 -- 2022-11-10
+
+### Added
+
+* `ptoAssetClass` and `ptoAssetClassData` for converting `PExtendedAssetClass`
+  to `PAssetClass` and `PAssetClassData` respectively.
+* `PlyArg` instance for `ExtendedAssetClass`.
+* `PlyArgOf` type instance for `ExtendedAssetClass`.
+
+## 3.14.4 -- 2022-11-09
+
+### Added
+
+* `Real` instance for `FixedDecimal`.
+
+## 3.14.3 -- 2022-11-09
+
+### Added
+
+* `inspect`, as a convenient combination of `asks` and `view`.
+* `inspects`, as a parallel to `views`.
+
+## 3.14.2 -- 2022-11-09
+
+### Added
+
+* `AssetClass` now has an `UnsafeFromData` instance, derived the same way as
+  `FromData` and `ToData`.
+* Module `Plutarch.Extra.ExtendedAssetClass`:
+  * `ExtendedAssetClass`, designed to provide a runtime distinction between
+    `AssetClass`es whose `TokenNames` are arbitrary versus non-arbitrary.
+  * Plutarch equivalents to the above: `PExtendedAssetClass`.
+  * Helper functions for comparing and retrieving values from
+    `PExtendedAssetClass`.
+
+## 3.14.1 -- 2022-11-02
+
+### Added
+
+* In `Plutarch.Extra.Value`:
+  - `psymbolValueOf'` for extracting positive and negative amount of a currency
+    symbol separately. Particularly useful in a minting policy that supports both
+    minting and burning.
+* In `Plutarch.Extra.Applicative`:
+  - Plutarch level monoid on applicative functors `PAlternative`
+  - `PAlternative` instances for:
+    * `PMaybe`
+    * `PMaybeData`
+    * `PList`
+    * `PBuiltinList`
+  - `ppureIf`
+* In `Plutarch.Extra.List`:
+  - Delete a value from a list:
+    * `pdeleteFirstBy`
+    * `ptryDeleteFirstBy`
+    * `pdeleteFirst`
+  - `plistEqualsBy`
+  - Deal with singleton lists:
+    * `pisSingleton`
+    * `pfromSingleton`
+    * `ptryFromSingleton`
+* In `Plutarch.Extra.Ord`:
+  - `pinsertUniqueBy`
+* In `Plutarch.Extra.ScriptContext`:
+  - Generate token names:
+    * `validatorHashToTokenName` and `pvalidatorHashToTokenName`
+    * `scriptHashToTokenName` and `pscriptHashToTokenName`
+  - `ptryFromRedeemer` to resolve redeemer
+* In `Plutarch.Extra.Time`:
+  - `pcurrentTimeDuration`
+* In `Plutarch.Extra.Bool`:
+  - `passert`
+
+### Modified
+
+* Modified the signature of `pmapMaybe'` in `Plutarch.Extra.List` to allow
+  choosing the output list type
+* In `Plutarch.Extra.Value`, make `unit` type parameters in the following tagged
+  assetclass utilities poly-kinded:
+  - `passetClassDataValueT`
+  - `psingleValueT'`
+  - `passetClassValueOfT'`
+  - `passetClassValueOfT`
+
+## 3.14.0 -- 2022-11-01
+
+### Added
+
+* Module `Plutarch.Extra.Deriving` to house derivation helpers.
+* Derivation helper for `Semigroup` and `Monoid` via `PInner`, along with a
+  _very_ prominent warning about potential misuse.
+
+### Removed
+
+* Overlapping instances of `Semigroup` and `Monoid` via `PInner`.
+
+## 3.13.0 -- 2022-10-31
+
+### Modified
+
+* `pfromInlineDatum` has been renamed `ptryFromInlineDatum`, to match
+  conventions.
+* `ptryFromOutputDatum` has been renamed `pfromOutputDatum`, to match
+  conventions.
+* `pfromOutputDatum` has been renamed `ptryFromOutputDatum`, to match
+  conventions.
+* `pownInput` has been renamed `ptryOwnInput`, to match conventions.
+* `pfromDatumHash` has been renamed `ptryFromDatumHash`, to match conventions.
+* `pownValue` has been renamed `ptryOwnValue`, to match conventions.
+
+## 3.12.2 -- 2022-10-27
+
+### Added
+
+* Integer power (`#^`) in `Plutarch.Extra.Numeric`.
+* `PRationalNoReduce` wrapper in `Plutarch.Extra.Rational`, along with
+  conversion functions `pnoReduce` and `preduce'`.
+
+## 3.12.1 -- 2022-10-27
+
+### Added
+
+* In `Plutarch.Extra.FixedDecimal`, zero-cost conversions to/from integers:
+  - `toFixedZero`
+  - `fromFixedZero`
+  - `ptoFixedZero`
+  - `pfromFixedZero`
+
+## 3.12.0 -- 2022-10-27
+
+### Added
+
+* `FixedDecimal` Haskell equivalent to `PFixedDecimal`, along with `Num` and
+* `Fractional` instances and the following functions:
+  - `fixedNumerator`
+  - `fixedDenominator`
+  - `emul`
+  - `ediv`
+  - `convertExp`
+
+### Modified
+
+* `PFixedDecimal` is updated so that it represents decimal point range in exponential form.
+
+  Following type and functions are added along with Plutarch numerical instances.
+  - `PFixedDecimal`
+  - `pfixedNumerator`
+  - `pfixedDenominator`
+  - `pemul`
+  - `pediv`
+  - `pconvertExp`
+  - `pfromFixedDecimal`
+  - `ptoFixedDecimal`
+  - `ptoRational`
+  - `punsafeMkFixedDecimal`
+
+* old `PFixedDecimal` is renamed and relocated into `Plutarch.Extra.Fixed`.
+
+## 3.11.1 -- 2022-10-27
+
+### Added
+
+* Modifier `GenAssetClass` to provide QuickCheck support for `AssetClass`
+* Helper type `AdaClassPresence` for indicating whether `GenAssetClass` should
+  generate the ADA class or not
+
+### Modified
+
+* `plutarch-quickcheck` is now a direct dependency, rather than test only.
+
+## 3.11.0 -- 2022-10-25
+
+### Added
+
+* Added a `withStateThread` function (replacing the old function)
+  that wraps a minting policy with a unique spend state thread policy
+
+### Modified
+
+* Renamed the old `withStateThread` function to `pwithStateThread`, to
+  reflect the fact that it was applied at the plutarch level.
+
 ## 3.10.4 -- 2022-10-25
 
-Changes to `Plutarch.Extra.AssetClass`:
+### Changed
 
-* Remove unnecessary `PAsData` wrappers
-* Allow tags of `AssetClass` to be poly-kinded
-* `PlyArg` instance for `AssetClass`
+* `Plutarch.Extra.AssetClass`:
+  * Remove unnecessary `PAsData` wrappers
+  * Allow tags of `AssetClass` to be poly-kinded
+  * `PlyArg` instance for `AssetClass`
 
 ## 3.10.3 -- 2022-10-24
 

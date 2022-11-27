@@ -1,130 +1,496 @@
-{-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module Plutarch.Extra.FixedDecimal (
+  FixedDecimal (..),
+  fixedNumerator,
+  fixedDenominator,
+  emul,
+  ediv,
+  toFixedZero,
+  fromFixedZero,
+  convertExp,
   PFixedDecimal (..),
-  DivideSemigroup (..),
-  DivideMonoid (..),
-  decimalToAdaValue,
-  fromPInteger,
-  toPInteger,
+  pfixedNumerator,
+  pfixedDenominator,
+  pemul,
+  pediv,
+  ptoFixedZero,
+  pfromFixedZero,
+  pconvertExp,
+  pfromFixedDecimal,
+  ptoFixedDecimal,
+  ptoRational,
+  punsafeMkFixedDecimal,
 ) where
 
-import Control.Composition (on, (.*))
-import Data.Bifunctor (first)
+import Control.Monad (guard)
 import Data.Proxy (Proxy (Proxy))
-import GHC.TypeLits (KnownNat, Nat, natVal)
-import Plutarch.Api.V1 (AmountGuarantees (NonZero), PValue)
-import qualified Plutarch.Api.V1.Value as Value
-import Plutarch.Api.V2 (KeyGuarantees (Sorted))
-import Plutarch.Extra.Function (pflip)
-import Plutarch.Num (PNum (pfromInteger, (#*)))
-import qualified Plutarch.Numeric.Additive as A (
-  AdditiveMonoid (zero),
-  AdditiveSemigroup ((+)),
+import Data.Ratio ((%))
+import GHC.Real (Ratio ((:%)))
+import GHC.TypeLits (KnownNat, Natural, natVal, type (+), type (-))
+import Plutarch.Extra.Rational ((#%))
+import Plutarch.Lift (
+  PConstantDecl (PConstantRepr, PConstanted, pconstantFromRepr, pconstantToRepr),
+  PUnsafeLiftDecl (PLifted),
  )
-import Plutarch.TryFrom (PTryFrom (PTryFromExcess, ptryFrom'))
+import Plutarch.Num (
+  PNum,
+  pabs,
+  pfromInteger,
+  (#*),
+  (#-),
+ )
+import Plutarch.Rational (PFractional (pfromRational, precip, (#/)))
+import Plutarch.Show (pshow')
 import Plutarch.Unsafe (punsafeCoerce)
+import qualified PlutusLedgerApi.V1 as PlutusTx
 
-{- | Fixed width decimal. Decimal point will be given through typelit.
- This would be used for representing Ada value with some Lovelace changes.
+------ Haskell
 
- @since 1.0.0
+{- | Fixed precision number. It behaves like scientific notation:
+     `exp` shows to what power of base 10 an integer is multiplied.
+
+     For example, Underlying value of 123456 with type `FixedDecimal 3` is
+     `123.456 (123456 * 10 ^ -3)`. If it's coerced into `FixedDecimal 5`, it will be
+     `1.23456 (123456 * 10 ^ -5)`. `FixedDecimal 0` will be identical to `Integer`.
+
+     Note, `exp` is the negative exponent to base 10.
+
+     Compared to 'Rational', 'Fixed' gives addition and subtraction
+     as fast as regular 'PInteger', allows negative values, and does
+     not require simplifications.
+
+     Performance note: Prefer 'emul', 'ediv', 'toFixedZero', and
+     'fromFixedZero'.  Then group calculations in a way that requires the least
+     amount of 'convertExp' calls.
+
+ @since 3.12.0
 -}
-newtype PFixedDecimal (unit :: Nat) (s :: S)
+newtype FixedDecimal (exp :: Natural) = FixedDecimal {numerator :: Integer}
+  deriving stock
+    ( -- | @since 3.12.0
+      Generic
+    , -- | @since 3.12.0
+      Eq
+    , -- | @since 3.12.0
+      Ord
+    , -- | @since 3.12.0
+      Show
+    )
+
+-- | @since 3.17.0
+instance (KnownNat exp) => PlutusTx.ToData (FixedDecimal exp) where
+  toBuiltinData (FixedDecimal n) =
+    PlutusTx.toBuiltinData
+      [ PlutusTx.toBuiltinData (integerVal @exp)
+      , PlutusTx.toBuiltinData n
+      ]
+
+-- | @since 3.17.0
+instance (KnownNat exp) => PlutusTx.FromData (FixedDecimal exp) where
+  fromBuiltinData dat = do
+    [tag, n] :: [PlutusTx.BuiltinData] <- PlutusTx.fromBuiltinData dat
+    let expected = integerVal @exp
+    tag' :: Integer <- PlutusTx.fromBuiltinData tag
+    guard (tag' == expected)
+    n' :: Integer <- PlutusTx.fromBuiltinData n
+    pure . FixedDecimal $ n'
+
+{- | This bypasses the check of @exp@ for speed. Only use this if you are
+ absolutely sure that you are deserializing with the right exponent.
+
+ @since 3.17.0
+-}
+instance PlutusTx.UnsafeFromData (FixedDecimal exp) where
+  unsafeFromBuiltinData dat = case PlutusTx.unsafeFromBuiltinData dat of
+    [_, n] -> FixedDecimal . PlutusTx.unsafeFromBuiltinData $ n
+    _ -> error "unsafeFromBuiltinData: Wrong form for FixedDecimal"
+
+{- | Integer numerator of 'FixedDecimal'
+
+ @since 3.12.0
+-}
+fixedNumerator :: forall (exp :: Natural). FixedDecimal exp -> Integer
+fixedNumerator (FixedDecimal num) = num
+
+{- | Integer denominator of 'FixedDecimal'
+
+ @since 3.12.0
+-}
+fixedDenominator :: forall (exp :: Natural). (KnownNat exp) => FixedDecimal exp -> Integer
+fixedDenominator _ = 10 ^ natVal (Proxy @exp)
+
+{- | Exponent-changing multiplication (implemented with a single integer multiplication)
+
+ @since 3.12.0
+-}
+emul ::
+  forall (expA :: Natural) (expB :: Natural).
+  FixedDecimal expA ->
+  FixedDecimal expB ->
+  FixedDecimal (expA + expB)
+emul (FixedDecimal a) (FixedDecimal b) = FixedDecimal $ a * b
+
+{- | Exponent-changing division (implemented with a single integer division)
+
+ @since 3.12.0
+-}
+ediv ::
+  forall (expA :: Natural) (expB :: Natural).
+  FixedDecimal expA ->
+  FixedDecimal expB ->
+  FixedDecimal (expA - expB)
+ediv (FixedDecimal a) (FixedDecimal b) = FixedDecimal $ a `div` b
+
+{- | Zero-cost transformation from 'Integer' to 'FixedDecimal 0'.
+
+ For use together with `emul` and `ediv`.
+
+ @since 3.12.1
+-}
+toFixedZero :: Integer -> FixedDecimal 0
+toFixedZero = FixedDecimal
+
+{- | Zero-cost transformation from 'FixedDecimal 0' to 'Integer'.
+
+ For use together with `emul` and `ediv`.
+
+ @since 3.12.1
+-}
+fromFixedZero :: FixedDecimal 0 -> Integer
+fromFixedZero (FixedDecimal n) = n
+
+{- | Convert to a different type-level exponent.
+
+ @since 3.12.0
+-}
+convertExp ::
+  forall (expA :: Natural) (expB :: Natural).
+  (KnownNat expA, KnownNat expB) =>
+  FixedDecimal expA ->
+  FixedDecimal expB
+convertExp (FixedDecimal a) =
+  let ediff = natVal (Proxy @expB) - natVal (Proxy @expA)
+   in FixedDecimal $
+        if ediff >= 0
+          then a * 10 ^ ediff
+          else a `div` 10 ^ (-ediff)
+
+instance (KnownNat exp) => Num (FixedDecimal exp) where
+  (FixedDecimal a) + (FixedDecimal b) = FixedDecimal (a + b)
+  fa@(FixedDecimal a) * (FixedDecimal b) = FixedDecimal (a * b `div` fixedDenominator fa)
+  abs (FixedDecimal a) = FixedDecimal $ abs a
+  signum fa@(FixedDecimal a) = FixedDecimal $ signum a * fixedDenominator fa
+  negate (FixedDecimal a) = FixedDecimal (negate a)
+  fromInteger i = FixedDecimal (i * 10 ^ natVal (Proxy @exp))
+
+instance (KnownNat exp) => Fractional (FixedDecimal exp) where
+  fromRational (a :% b) = FixedDecimal $ a * 10 ^ natVal (Proxy @exp) `div` b
+  (FixedDecimal a) / (FixedDecimal b) = FixedDecimal $ a * 10 ^ natVal (Proxy @exp) `div` b
+
+-- | @since 3.14.4
+instance KnownNat n => Real (FixedDecimal n) where
+  toRational f = fixedNumerator f % fixedDenominator f
+
+------ Plutarch
+
+{- | Fixed precision number. It behaves like scientific notation:
+     `exp` shows to what power of base 10 an integer is multiplied.
+
+     For example, Underlying value of 123456 with type `PFixedDecimal 3` is
+     `123.456 (123456 * 10 ^ -3)`. If it's coerced into `PFixedDecimal 5`, it will be
+     `1.23456 (123456 * 10 ^ -5)`. `PFixedDecimal 0` will be identical to `PInteger`.
+
+     Note, `exp` is the negative exponent to base 10. 'PFixed' does not support
+     positive exponent.
+
+     Compared to 'PRational', 'PFixed' gives addition and subtraction
+     as fast as regular 'PInteger', allows negative values, and does
+     not require simplifications.
+
+     Performance note: Prefer 'pemul', 'pediv', 'ptoFixedZero', and
+     'pfromFixedZero'.  Then group calculations in a way that requires the least
+     amount of 'convertExp' calls.
+
+ @since 3.12.0
+-}
+newtype PFixedDecimal (exp :: Natural) (s :: S)
   = PFixedDecimal (Term s PInteger)
   deriving stock
-    ( -- | @since 1.0.0
+    ( -- | @since 3.12.0
       Generic
     )
   deriving anyclass
-    ( -- | @since 1.0.0
+    ( -- | @since 3.12.0
       PlutusType
-    , -- | @since 1.0.0
+    , -- | @since 3.12.0
       PIsData
-    , -- | @since 1.4.0
+    , -- | @since 3.12.0
       PEq
-    , -- | @since 1.4.0
+    , -- | @since 3.12.0
       PPartialOrd
-    , -- | @since 1.0.0
+    , -- | @since 3.12.0
       POrd
-    , -- | @since 1.0.0
-      PShow
     )
 
--- | @since 1.4.0
-instance DerivePlutusType (PFixedDecimal a) where
+-- | @since 3.12.0
+instance forall (exp :: Natural). DerivePlutusType (PFixedDecimal exp) where
   type DPTStrat _ = PlutusTypeNewtype
 
-instance KnownNat u => PNum (PFixedDecimal u) where
-  (#*) =
-    (pcon . PFixedDecimal)
-      .* (pflip # pdiv # pconstant (natVal (Proxy @u)) #)
-      .* (#*) `on` punsafeCoerce
-  pfromInteger = pcon . PFixedDecimal . (* pconstant (natVal (Proxy @u))) . pconstant
+-- | @since 3.17.0
+instance (KnownNat unit) => PUnsafeLiftDecl (PFixedDecimal unit) where
+  type PLifted (PFixedDecimal unit) = FixedDecimal unit
 
--- | @since 1.0.0
-instance PTryFrom PData (PAsData (PFixedDecimal unit)) where
-  type PTryFromExcess PData (PAsData (PFixedDecimal unit)) = PTryFromExcess PData (PAsData PInteger)
-  ptryFrom' d k = ptryFrom' @_ @(PAsData PInteger) d $ k . first punsafeCoerce
+-- | @since 3.17.0
+instance (KnownNat unit) => PConstantDecl (FixedDecimal unit) where
+  type PConstantRepr (FixedDecimal unit) = PlutusTx.Data
+  type PConstanted (FixedDecimal unit) = PFixedDecimal unit
+  pconstantToRepr = PlutusTx.toData
+  pconstantFromRepr = PlutusTx.fromData
 
--- TODO: This should be moved to either to plutarch-numeric or other module
-class DivideSemigroup a where
-  divide :: a -> a -> a
+-- | @since 3.12.0
+instance forall (exp :: Natural). KnownNat exp => PShow (PFixedDecimal exp) where
+  pshow' wrap z =
+    wrap' $
+      "PFixedDecimal "
+        <> pshow (pquot # pto z # base)
+        <> "."
+        <> (replicateStr # pconstant baseExp #- (places # decimal) # "0")
+        <> pshow decimal
+    where
+      baseExp = natVal (Proxy @exp)
+      -- without pconstant, the 10 is a Term and ^ creates Plutarch-level calculations
+      base = pconstant $ 10 ^ baseExp
+      decimal = prem # (pabs # pto z) # base
+      wrap' x = if wrap then "(" <> x <> ")" else x
 
-class DivideSemigroup a => DivideMonoid a where
-  one :: a
+      places =
+        pfix #$ plam $ \self x ->
+          plet (pquot # x # 10) $ \q ->
+            pif (q #== 0) 1 (1 + self # q)
 
--- | @since 1.0.0
-instance KnownNat u => DivideSemigroup (Term s (PFixedDecimal u)) where
-  divide (pto -> x) (pto -> y) =
-    pcon . PFixedDecimal $ pdiv # (x * pconstant (natVal (Proxy @u))) # y
+      replicateStr :: Term s (PInteger :--> PString :--> PString)
+      replicateStr =
+        pfix #$ plam $ \self x str ->
+          pif (0 #< x) (str <> (self # (x #- 1) # str)) ""
 
--- | @since 1.0.0
-instance KnownNat u => DivideMonoid (Term s (PFixedDecimal u)) where
-  one = 1
+-- | @since 3.12.0
+instance forall (exp :: Natural). KnownNat exp => PNum (PFixedDecimal exp) where
+  a' #* b' =
+    phoistAcyclic
+      ( plam $ \a b ->
+          pcon . PFixedDecimal $
+            pdiv # (pto a * pto b) # pconstant (10 ^ natVal (Proxy @exp))
+      )
+      # a'
+      # b'
+  pfromInteger =
+    pcon
+      . PFixedDecimal
+      . pconstant
+      . (* (10 ^ natVal (Proxy @exp)))
 
--- | @since 1.0.0
-instance KnownNat u => A.AdditiveSemigroup (Term s (PFixedDecimal u)) where
-  (+) = (+)
+-- | @since 3.12.0
+instance forall (exp :: Natural). KnownNat exp => PIntegral (PFixedDecimal exp) where
+  pdiv =
+    phoistAcyclic $
+      plam $ \x y ->
+        pcon . PFixedDecimal $
+          pdiv # (pto x * pconstant (10 ^ natVal (Proxy @exp))) # pto y
+  pmod = phoistAcyclic $ plam $ \x y -> pcon . PFixedDecimal $ pmod # pto x # pto y
+  pquot =
+    phoistAcyclic $
+      plam $ \x y ->
+        pcon . PFixedDecimal $
+          pquot # (pto x * pconstant (10 ^ natVal (Proxy @exp))) # pto y
+  prem =
+    phoistAcyclic $ plam $ \x y -> pcon . PFixedDecimal $ prem # pto x # pto y
 
--- | @since 1.0.0
-instance KnownNat u => A.AdditiveMonoid (Term s (PFixedDecimal u)) where
-  zero = pcon . PFixedDecimal $ pconstant 0
+instance (KnownNat exp) => PFractional (PFixedDecimal exp) where
+  pfromRational ::
+    forall (s :: S).
+    Term s (PRational :--> PFixedDecimal exp)
+  pfromRational = phoistAcyclic $
+    plam $
+      flip pmatch $ \(PRational num denom) ->
+        pcon . PFixedDecimal $ pdiv # (num * pconstant (10 ^ natVal (Proxy @exp))) # pto denom
 
-{- | Convert given decimal into Ada value. Input should be Ada value with decimals; outputs
- will be lovelace values in integer.
+  a' #/ b' = go # a' # b'
+    where
+      go = phoistAcyclic $
+        plam $ \a b ->
+          pcon . PFixedDecimal $ pdiv # (pto a * pconstant (10 ^ natVal (Proxy @exp))) # pto b
 
- @since 3.9.0
+  precip =
+    phoistAcyclic $
+      plam $ \x ->
+        pcon . PFixedDecimal $ pdiv # pconstant (10 ^ (2 * natVal (Proxy @exp))) # pto x
+
+{- | Integer numerator of 'PFixedDecimal'
+
+ @since 3.12.0
 -}
-decimalToAdaValue ::
-  forall (s :: S) (unit :: Nat).
-  KnownNat unit =>
-  Term s (PFixedDecimal unit :--> PValue 'Sorted 'NonZero)
-decimalToAdaValue =
-  phoistAcyclic $
-    plam $ \(pto -> dec) ->
-      let adaValue = (pdiv # dec # pconstant (natVal (Proxy @unit))) * pconstant 1000000
-       in Value.psingleton # pconstant "" # pconstant "" #$ adaValue
+pfixedNumerator ::
+  forall (s :: S) (unit :: Natural).
+  Term s (PFixedDecimal unit) ->
+  Term s PInteger
+pfixedNumerator = pto
 
-{- | Convert @PInteger@ to @PFixedDecimal@.
+{- | Integer denominator of 'PFixedDecimal'
 
- @since 1.0.0
+ @since 3.12.0
 -}
-fromPInteger ::
-  forall (unit :: Nat) (s :: S).
-  KnownNat unit =>
-  Term s (PInteger :--> PFixedDecimal unit)
-fromPInteger =
-  phoistAcyclic $ plam $ \z -> pcon . PFixedDecimal $ pconstant (natVal (Proxy @unit)) * z
+pfixedDenominator ::
+  forall (s :: S) (unit :: Natural).
+  (KnownNat unit) =>
+  Term s (PFixedDecimal unit) ->
+  Term s PInteger
+pfixedDenominator _ = pconstant $ 10 ^ natVal (Proxy @unit)
 
-{- | Convert @PFixedDecimal@ to @Integer@. Values that are smaller than 1 will be lost.
+{- | Exponent-changing multiplication (implemented with a single integer multiplication)
 
- @since 1.0.0
+ @since 3.12.0
 -}
-toPInteger ::
-  forall (unit :: Nat) (s :: S).
-  KnownNat unit =>
-  Term s (PFixedDecimal unit :--> PInteger)
-toPInteger =
-  phoistAcyclic $ plam $ \d -> pdiv # pto d # pconstant (natVal (Proxy @unit))
+pemul ::
+  forall (s :: S) (expA :: Natural) (expB :: Natural).
+  Term s (PFixedDecimal expA) ->
+  Term s (PFixedDecimal expB) ->
+  Term s (PFixedDecimal (expA + expB))
+pemul a b = pcon . PFixedDecimal $ pfixedNumerator a * pfixedNumerator b
+
+{- | Exponent-changing division (implemented with a single integer division)
+
+ @since 3.12.0
+-}
+pediv ::
+  forall (s :: S) (expA :: Natural) (expB :: Natural).
+  Term s (PFixedDecimal expA) ->
+  Term s (PFixedDecimal expB) ->
+  Term s (PFixedDecimal (expA - expB))
+pediv a b = pcon . PFixedDecimal $ pdiv # pfixedNumerator a # pfixedNumerator b
+
+{- | Zero-cost transformation from 'PInteger' to 'PFixedDecimal 0'.
+
+ For use together with `pemul` and `pediv`.
+
+ @since 3.12.1
+-}
+ptoFixedZero ::
+  forall (s :: S).
+  Term s PInteger ->
+  Term s (PFixedDecimal 0)
+ptoFixedZero = pcon . PFixedDecimal
+
+{- | Zero-cost transformation from 'PFixedDecimal 0' to 'PInteger'.
+
+ For use together with `pemul` and `pediv`.
+
+ @since 3.12.1
+-}
+pfromFixedZero ::
+  forall (s :: S).
+  Term s (PFixedDecimal 0) ->
+  Term s PInteger
+pfromFixedZero = pto
+
+{- | Change decimal point.
+
+ *Caution* This function will drop precision when converting from more
+ decimal points to less decimal points.
+
+ For example, converting `1.234 :: Fixed 3` into `Fixed 1` will drop
+ hundredth and thousandth place value and will give `1.2 :: Fixed 1`.
+
+ There is not data loss going from small decimal points to big decimal points,
+ but they will take up more memory.
+
+ @since 3.12.0
+-}
+pconvertExp ::
+  forall (exp2 :: Natural) (exp1 :: Natural) (s :: S).
+  (KnownNat exp1, KnownNat exp2) =>
+  Term s (PFixedDecimal exp1 :--> PFixedDecimal exp2)
+pconvertExp = phoistAcyclic $
+  plam $ \z ->
+    let ediff = (natVal (Proxy @exp2) - natVal (Proxy @exp1))
+     in pcon . PFixedDecimal $
+          case compare ediff 0 of
+            GT -> pto z * pconstant (10 ^ abs ediff)
+            EQ -> pto z
+            LT -> pdiv # pto z # pconstant (10 ^ (-ediff))
+
+{- | Convert 'PFixed' into 'PInteger'.
+
+ *Caution* This will drop all decimal point values. For example,
+ converting `12.345 :: Fixed 3` will give `12 :: Integer`. Pay close
+ attention using this function.
+
+ If one needs to retrive all decimal point values, use `pto` instead.
+
+ @since 3.12.0
+-}
+pfromFixedDecimal ::
+  forall (exp :: Natural) (s :: S).
+  KnownNat exp =>
+  Term s (PFixedDecimal exp :--> PInteger)
+pfromFixedDecimal = phoistAcyclic $
+  plam $ \z ->
+    if expVal == 0
+      then pto z
+      else pdiv # pto z #$ pconstant (10 ^ expVal)
+  where
+    expVal = natVal (Proxy @exp)
+
+{- | Convert 'PInteger' into 'PFixed'.
+
+ There is no dataloss, but takes more memory.
+
+ @since 3.12.0
+-}
+ptoFixedDecimal ::
+  forall (exp :: Natural) (s :: S).
+  KnownNat exp =>
+  Term s (PInteger :--> PFixedDecimal exp)
+ptoFixedDecimal = phoistAcyclic $
+  plam $ \z ->
+    pcon
+      . PFixedDecimal
+      $ if expVal == 0
+        then z
+        else z * pconstant (10 ^ natVal (Proxy @exp))
+  where
+    expVal = natVal (Proxy @exp)
+
+{- | Convert 'PFixed' into 'PRational'.
+
+ Note, it will *not* simplify. There is no data loss.
+
+ @since 3.12.0
+-}
+ptoRational ::
+  forall (exp :: Natural) (s :: S).
+  KnownNat exp =>
+  Term s (PFixedDecimal exp :--> PRational)
+ptoRational = phoistAcyclic $
+  plam $
+    \z -> pto z #% pconstant (10 ^ natVal (Proxy @exp))
+
+{- | Make 'PFixed' from 'PInteger'.
+
+ *Caution* 'PInteger' given will not be equal to returned 'PFixed'.
+ Input ignores decimal point: `1234 :: Integer` will return `12.34 :: Fixed 2`.
+
+ @since 3.12.0
+-}
+punsafeMkFixedDecimal ::
+  forall (exp :: Natural) (s :: S).
+  Term s (PInteger :--> PFixedDecimal exp)
+punsafeMkFixedDecimal = plam punsafeCoerce
+
+-- Helpers
+
+integerVal ::
+  forall (n :: Natural).
+  (KnownNat n) =>
+  Integer
+integerVal = fromIntegral . natVal $ Proxy @n
