@@ -19,6 +19,9 @@ module Plutarch.Extra.IsData (
   -- * Functions for PEnumData types
   pmatchEnum,
   pmatchEnumFromData,
+
+  -- * Internals
+  UD',
 ) where
 
 --------------------------------------------------------------------------------
