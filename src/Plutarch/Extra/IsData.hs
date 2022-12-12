@@ -125,7 +125,7 @@ type family UD' (p :: S -> Type) :: S -> Type where
   UD' (p x1 x2 x3 x4) = p (UD' x1) (UD' x2) (UD' x3) (UD' x4)
   UD' (p x1 x2 x3) = p (UD' x1) (UD' x2) (UD' x3)
   UD' (p x1 x2) = p (UD' x1) (UD' x2)
-  UD' (p x1) = p (PAsData (UD' x1))
+  UD' (p x1) = p (UD' x1)
   UD' p = p
 
 type family UD (p :: [S -> Type]) :: [S -> Type] where
